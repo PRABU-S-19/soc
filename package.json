@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "description": "SOC analyst simulation: live log stream, L1 triage, L2 investigation, L3 response, ticket closure",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server/index.js",
     "dev:server": "node --watch server/index.js",
     "dev:client": "vite --config client/vite.config.js",
     "build": "vite build --config client/vite.config.js",
-    "test": "node --test --test-reporter=spec tests/*.test.mjs"
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

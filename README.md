@@ -12,13 +12,20 @@ the ticket is closed.
 
 ## Run it
 
-Requires Node.js 18 or newer.
+Requires Node.js 18 or newer (22 recommended; `.node-version` pins 22).
 
     npm install --omit=dev     # server needs only express; the UI is prebuilt in client/dist
     npm start                  # http://localhost:4000
 
-Environment variables: `PORT` (default 4000), `SOC_SIM_DATA` (path of the
-case store, default `data/cases.json`).
+### Environment variables
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `PORT` | No | `4000` | Port to listen on. Render sets it automatically. |
+| `SOC_SIM_DATA` | No | `data/cases.json` | Path of the case store file. |
+| `NODE_VERSION` | Render only | `22` in `render.yaml` | Node version Render installs. |
+
+There are no secrets, API keys or `.env` files. Nothing else needs setting.
 
 ### Develop
 
@@ -26,11 +33,50 @@ case store, default `data/cases.json`).
     npm run dev:server         # API on :4000, restarts on change
     npm run dev:client         # Vite on :5173, proxies /api to :4000
     npm run build              # rebuild client/dist
-<<<<<<< HEAD
     npm test                   # end-to-end API tests (about 90 s; they wait for real alert timers)
-=======
-    npm test                   # end-to-end API tests (about 45 s; they wait for real alert timers)
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
+
+All of these work the same in Windows PowerShell, cmd and Linux/macOS shells.
+
+## Deploy on Render
+
+**New service (Blueprint).** In Render choose New > Blueprint, select this
+repository, and apply. `render.yaml` sets everything:
+
+| Setting | Value |
+|---|---|
+| Runtime | Node |
+| Build command | `npm ci --include=dev && npm run build` |
+| Start command | `npm start` |
+| Health check path | `/api/health` |
+| Environment | `NODE_VERSION=22` |
+
+**Existing Web Service.** Open the service, Settings, and set the build
+command, start command and health check path to the values above. Add the
+environment variable `NODE_VERSION` = `22`. Do not add `PORT`. Then Manual
+Deploy > Clear build cache & deploy.
+
+The build needs the devDependencies (Vite, React) to compile the UI, which
+is why the build command uses `--include=dev`. The compiled UI is also
+committed in `client/dist`, so `npm install` + `npm start` alone still
+works if the build step is skipped.
+
+Check after deploy: `https://<your-service>.onrender.com/api/health`
+returns `{"ok":true,...}` and the home page lists two scenarios.
+
+On the free plan the disk is not persistent: cases and demo sessions are
+lost when the service restarts or redeploys, and the service sleeps when
+idle (the first request after that takes up to about a minute).
+
+### Avoiding merge conflicts
+
+`client/dist` is generated. When two branches both rebuild it, Git reports
+conflicts in its hashed file names. Resolve those by running
+`npm run build` and committing the result, never by editing the files.
+Before pushing, check that no conflict markers are left:
+
+    git grep -n -E "^(<<<<<<<|=======|>>>>>>>)( |$)"
+
+No output means it is clean.
 
 ## Scenarios
 
@@ -42,7 +88,6 @@ case store, default `data/cases.json`).
 Catalogue entries describe only the alert. What is behind it is in the
 after-action review.
 
-<<<<<<< HEAD
 ## For beginners: Newbie Demo Mode and the walkthrough
 
 The home page has a "New here?" section with two optional entry points.
@@ -61,8 +106,6 @@ labelled a guided learning summary, not an assessment.
 `docs/BEGINNER_MODE.md` is the implementation report: files, the guided
 sequence, how validation and isolation work, and the test results.
 
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 ## How it works
 
     server/
@@ -80,7 +123,6 @@ sequence, how validation and isolation work, and the test results.
         response.js         response actions, environment state, objective evaluation
         report.js           after-action report and Markdown export
         common.js           shared scenario helpers (beacon generator)
-<<<<<<< HEAD
       scenarios/            one module per scenario (demo-portal.js is the hidden demo scenario)
       demo/
         guide.js            Newbie Demo script (public) and its checks (server only)
@@ -89,13 +131,9 @@ sequence, how validation and isolation work, and the test results.
         routes.js           /api/demo and /api/tour
     client/src/             React UI (Vite)
       tour/                 GuidedTour (reusable), HomeTour, DemoPage, DemoIntro, DemoSummary, Quiz
-    tests/                  node:test suites driving the real API
+    tests/                  node:test suites driving the real API (run.mjs lists them for npm test)
+    render.yaml             Render Blueprint (build, start, health check, Node version)
     docs/                   BEGINNER_MODE.md
-=======
-      scenarios/            one module per scenario
-    client/src/             React UI (Vite)
-    tests/                  node:test suites driving the real API
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 **Real-time logs.** Each case has a random seed and a start time. Every
 one-second slot is generated deterministically from them, so history (30 to
@@ -163,7 +201,6 @@ not actually support.
 - Free-text notes and summaries are recorded and length-checked, not graded
   for content.
 - A live case stops generating new log lines six hours after it starts.
-<<<<<<< HEAD
 - Demo sessions are removed 24 hours after they start. Walkthrough sample
   tickets live in memory only and are rebuilt every 20 minutes.
 - In Newbie Demo Mode the investigation summary is checked for its six
@@ -172,10 +209,3 @@ not actually support.
 - All organisation data is fictional. External infrastructure uses the
   reserved `.example` TLD and documentation IP ranges; benign destinations
   in the noise use those too, so a `.example` suffix is not a tell.
-#   S O C - u p d a t e d  
- 
-=======
-- All organisation data is fictional. External infrastructure uses the
-  reserved `.example` TLD and documentation IP ranges; benign destinations
-  in the noise use those too, so a `.example` suffix is not a tell.
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f

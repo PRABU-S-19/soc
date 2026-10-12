@@ -1,10 +1,6 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
-<<<<<<< HEAD
 import { start, stop, api, seen, record, findLeaks, waitForAlert, solveStage, engine, getScenario, LogStream, sleep } from './helpers.mjs';
-=======
-import { start, stop, api, seen, record, findLeaks, waitForAlert, solveStage, engine, getScenario, LogStream } from './helpers.mjs';
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 const scn = getScenario('s01-beacon');
 const { IOC } = scn._test;
@@ -183,12 +179,9 @@ test('L3 response: actions change the environment and the log stream', async () 
   const purge = engine.getCase(id).actions.find((a) => a.type === 'purge_email');
   assert.match(purge.summary, /3 messages removed from 3 mailboxes/);
 
-<<<<<<< HEAD
   // Log slots are one second long and take the response state in force at
   // the start of the slot, so let the slot the last action landed in finish.
   await sleep(1100);
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   // Jump the stream two minutes ahead: the implants are gone, so no beacon of any kind.
   const c = engine.getCase(id);
   const s = engine.streamFor(c);

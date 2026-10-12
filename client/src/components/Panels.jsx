@@ -19,7 +19,6 @@ export function LiveFeed({ live, paused, setPaused, held, ctx, sources, connecte
     if (n.has(s)) n.delete(s); else n.add(s);
     setHidden(n);
   };
-
   return (
     <div className="panel">
       <div className="toolbar" data-tour="feed-toolbar">
@@ -28,9 +27,7 @@ export function LiveFeed({ live, paused, setPaused, held, ctx, sources, connecte
           {closed ? 'Stream ended with the ticket' : !connected ? 'Reconnecting…' : paused ? `Paused, ${held} new line${held === 1 ? '' : 's'} waiting` : 'Streaming'}
         </span>
         {!closed && (
-          <button type="button" className="btn btn-sm" data-tour="feed-pause" onClick={() => setPaused(!paused)}>
-            {paused ? 'Resume' : 'Pause'}
-          </button>
+          <button type="button" className="btn btn-sm" data-tour="feed-pause" onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
         )}
         <div className="chips">
           {sources.map((s) => (
@@ -88,7 +85,7 @@ export function SearchPanel({ caseId, search, setSearch, ctx, sources }) {
   return (
     <div className="panel">
       <form className="toolbar" data-tour="search-bar" onSubmit={run}>
-        <input data-tour="search-input" className="input mono grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Search logs, e.g. source:proxy dest_host:*.example" aria-label="Log query" spellCheck={false} />
+        <input data-tour="search-input" className="input mono grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder='Search logs, e.g. source:proxy dest_host:*.example' aria-label="Log query" spellCheck={false} />
         <button type="submit" className="btn btn-primary btn-sm" data-tour="search-run">Search</button>
         <button type="button" className="btn btn-sm" onClick={() => { setDraft(''); setSearch({ q: '', source: '', nonce: search.nonce + 1 }); }}>Reset</button>
         <button type="button" className="link" onClick={() => setHelp(!help)} aria-expanded={help}>Query syntax</button>
@@ -142,7 +139,6 @@ function AlertCard({ alert, caseId, ctx, related }) {
     api.events(caseId, alert.matched).then((r) => { if (!dead) setEvents(r.events.sort((a, b) => b.ts - a.ts)); }).catch(() => {});
     return () => { dead = true; };
   }, [caseId, alert.id]);
-
   return (
     <section className="card" data-tour="alert-card">
       <header className="card-head">
@@ -204,7 +200,6 @@ export function EvidencePanel({ cs, ctx, act }) {
   const [val, setVal] = useState('');
   const open = cs.status === 'open';
   const pins = [...cs.pins].sort((a, b) => a.event.ts - b.event.ts);
-
   return (
     <div className="panel">
       <div className="scroll pad">
@@ -273,7 +268,6 @@ export function HistoryPanel({ cs, act }) {
   const [text, setText] = useState('');
   const rows = cs.history.filter((h) => kind === 'all' || h.kind === kind || (kind === 'system' && ['system', 'alert', 'qa'].includes(h.kind)) || (kind === 'stage' && h.kind === 'qa'));
   const stageLabel = Object.fromEntries(cs.stages.map((s) => [s.id, s.label]));
-
   return (
     <div className="panel">
       <div className="toolbar" data-tour="history-filters">

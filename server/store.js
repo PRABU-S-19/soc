@@ -23,14 +23,21 @@ function flush() {
     fs.mkdirSync(path.dirname(FILE), { recursive: true });
     const tmp = `${FILE}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(db));
-    fs.renameSync(tmp, FILE);
+    try {
+      fs.renameSync(tmp, FILE);
+    } catch (err) {
+      // Windows refuses to rename over a file another process (an editor,
+      // an antivirus scan) has open. Fall back to copy-then-delete.
+      if (err.code !== 'EPERM' && err.code !== 'EACCES' && err.code !== 'EBUSY') throw err;
+      fs.copyFileSync(tmp, FILE);
+      fs.unlinkSync(tmp);
+    }
   } catch (err) {
     console.error(`Could not write ${FILE}: ${err.message}`);
   }
 }
 
 export const store = {
-<<<<<<< HEAD
   // Demo tickets draw from their own counter so they never consume or
   // reorder assessment ticket numbers.
   nextSeq(kind) {
@@ -38,9 +45,6 @@ export const store = {
     db.seq += 1;
     return db.seq;
   },
-=======
-  nextSeq() { db.seq += 1; return db.seq; },
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   all() { return Object.values(db.cases); },
   get(id) { return db.cases[id]; },
   put(c) { db.cases[c.id] = c; this.save(); },

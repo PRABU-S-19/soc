@@ -3,7 +3,6 @@
 
 import s01 from './s01-beacon.js';
 import s02 from './s02-authfail.js';
-<<<<<<< HEAD
 import demo from './demo-portal.js';
 
 const ALL = [s01, s02];
@@ -12,11 +11,6 @@ const ALL = [s01, s02];
 // through the normal case API.
 const HIDDEN = [demo];
 const byId = new Map([...ALL, ...HIDDEN].map((s) => [s.id, s]));
-=======
-
-const ALL = [s01, s02];
-const byId = new Map(ALL.map((s) => [s.id, s]));
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 export const getScenario = (id) => byId.get(id);
 

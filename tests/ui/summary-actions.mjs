@@ -4,10 +4,11 @@
 // not a dependency of this project. Run it like the other scripts in this folder.
 // Environment: BASE, OUT, PLAYWRIGHT, SOC_SIM_DATA (the server's case store file).
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.PLAYWRIGHT || 'playwright');
 const base = process.env.BASE || 'http://localhost:4000';
-const out = process.env.OUT || new URL('./shots', import.meta.url).pathname;
-const DATA = process.env.SOC_SIM_DATA || new URL('../../data/cases.json', import.meta.url).pathname;
+const out = process.env.OUT || fileURLToPath(new URL('./shots', import.meta.url));
+const DATA = process.env.SOC_SIM_DATA || fileURLToPath(new URL('../../data/cases.json', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
 const b = await chromium.launch();
 const page = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
@@ -35,7 +36,8 @@ await page.goto(`${base}/#/demo/${done.id}/summary`);
 await page.waitForSelector('[data-tour~="summary-actions"]');
 await page.click('button:has-text("Open normal simulation")');
 await page.waitForSelector('[data-tour~="home-scenario"]'); await page.waitForTimeout(300);
-R.openNormal = page.url().endsWith('#/') && await page.evaluate(() => document.getElementById('start-a-shift').getBoundingClientRect().top < 200);
+// Scrolled to the scenario list, or as far towards it as a short page allows.
+R.openNormal = page.url().endsWith('#/') && await page.evaluate(() => document.getElementById('start-a-shift').getBoundingClientRect().top < 200 || scrollY >= document.documentElement.scrollHeight - innerHeight - 2);
 await page.click('[data-tour~="home-demo-start"]');
 await page.waitForSelector('[data-tour~="demo-resume"]');
 R.finishedCard = await page.locator('[data-tour~="demo-resume"] h2').textContent();

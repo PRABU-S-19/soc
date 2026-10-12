@@ -7,9 +7,10 @@
 // Environment: BASE (default http://localhost:4000), OUT (screenshot folder,
 // default tests/ui/shots), PLAYWRIGHT (module path, default 'playwright').
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.PLAYWRIGHT || 'playwright');
 const base = process.env.BASE || 'http://localhost:4000';
-const out = process.env.OUT || new URL('./shots', import.meta.url).pathname;
+const out = process.env.OUT || fileURLToPath(new URL('./shots', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
 const [,, W = '1440', H = '900', tag = 'd', stopAt = ''] = process.argv;
 const ATK = '203.0.113.253';

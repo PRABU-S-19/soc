@@ -18,21 +18,14 @@ import { TOOLS, runTool } from './tools.js';
 import { buildReport } from './report.js';
 
 const streams = new Map();
-<<<<<<< HEAD
 // Read-only sample tickets for the homepage walkthrough. Held in memory
 // only: they are never written to the case store and never listed.
 const ephemeral = new Map();
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 const TIER_NUM = { L1: 1, L2: 2, L3: 3 };
 const DECAY = [1, 0.7, 0.4];
 
 export function getCase(id) {
-<<<<<<< HEAD
   const c = store.get(id) || ephemeral.get(id);
-=======
-  const c = store.get(id);
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   if (!c) throw new HttpError(404, 'Case not found.');
   return c;
 }
@@ -58,7 +51,6 @@ const actorOf = (c) => {
   return `${def?.tier || 'L1'} analyst (${c.analyst})`;
 };
 
-<<<<<<< HEAD
 // `kind` is set only by the guided-demo and walkthrough modules, never from
 // a request body. Without it the case is an ordinary assessment case and
 // hidden (demo-only) scenarios are refused.
@@ -78,19 +70,6 @@ export function createCase({ scenarioId, analyst, kind, backdateSeconds = 0 }) {
     scenarioId,
     seed: crypto.randomBytes(8).toString('hex'),
     t0: now - backdateSeconds * 1000,
-=======
-export function createCase({ scenarioId, analyst }) {
-  const scn = getScenario(scenarioId);
-  if (!scn) throw new HttpError(400, 'Unknown scenario.');
-  const now = Date.now();
-  const seq = store.nextSeq();
-  const c = {
-    id: crypto.randomBytes(6).toString('hex'),
-    ticket: `INC-${new Date(now).getUTCFullYear()}-${String(seq).padStart(5, '0')}`,
-    scenarioId,
-    seed: crypto.randomBytes(8).toString('hex'),
-    t0: now,
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     analyst: String(analyst || 'analyst').trim().slice(0, 40) || 'analyst',
     status: 'monitoring',
     stage: scn.stages[0].id,
@@ -109,13 +88,8 @@ export function createCase({ scenarioId, analyst }) {
     closedAt: null,
     report: null,
   };
-<<<<<<< HEAD
   log(c, 'System', 'system', `Shift started. Monitoring the ${scn.catalog.queue} queue.`, { ts: c.t0 });
   if (kind === 'preview') ephemeral.set(c.id, c); else store.put(c);
-=======
-  log(c, 'System', 'system', `Shift started. Monitoring the ${scn.catalog.queue} queue.`, { ts: now });
-  store.put(c);
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   streamFor(c);
   return c;
 }
@@ -178,10 +152,7 @@ function publicStage(c, def, stream) {
   const out = {
     id: def.id, label: def.label, tier: def.tier, kind: def.kind, intro: def.intro,
     attempts: def.attempts || 1, attemptsUsed: st.attempts || 0, submitLabel: def.submitLabel,
-<<<<<<< HEAD
     ...(def.noFinalize ? { noFinalize: true } : {}),
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   };
   if (def.kind === 'form') {
     out.fields = def.fields.map((f) => publicField(f, c, stream));
@@ -236,11 +207,7 @@ export function caseSummary(c) {
   const scn = getScenario(c.scenarioId);
   const def = stageDef(scn, c.stage);
   return {
-<<<<<<< HEAD
     id: c.id, ticket: c.ticket, ...(c.kind ? { kind: c.kind } : {}), scenarioId: c.scenarioId, scenarioTitle: scn.catalog.title,
-=======
-    id: c.id, ticket: c.ticket, scenarioId: c.scenarioId, scenarioTitle: scn.catalog.title,
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     title: c.alert ? c.alert.title : 'Monitoring',
     analyst: c.analyst, status: c.status, stage: c.stage, stageLabel: def?.label, tier: def?.tier,
     severity: c.severity || c.alert?.severity || null,
@@ -254,11 +221,7 @@ export function publicCase(c) {
   const def = stageDef(scn, c.stage);
   const tier = TIER_NUM[def?.tier] || 1;
   const open = c.status === 'open';
-<<<<<<< HEAD
   const pub = {
-=======
-  return {
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     ...caseSummary(c),
     rev: c.rev,
     serverTime: Date.now(),
@@ -282,7 +245,6 @@ export function publicCase(c) {
     metrics: metrics(c),
     report: c.status === 'closed' ? c.report : null,
   };
-<<<<<<< HEAD
   return c.kind === 'preview' ? redactPreview(pub) : pub;
 }
 
@@ -312,20 +274,14 @@ function redactPreview(pub) {
       truth: { summary: PREVIEW_NOTE, timeline: [], iocs: [] },
     } : null,
   };
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 }
 
 // ---------------------------------------------------------------------------
 // Analyst operations
 // ---------------------------------------------------------------------------
-<<<<<<< HEAD
 const READ_ONLY = 'This is a read-only sample ticket used by the walkthrough. Start the Newbie Demo or a shift to work a ticket yourself.';
 function requireOpen(c) {
   if (c.readOnly) throw new HttpError(403, READ_ONLY);
-=======
-function requireOpen(c) {
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   if (c.status === 'closed') throw new HttpError(409, 'This ticket is closed. The case file is read-only.');
   if (c.status === 'monitoring') throw new HttpError(409, 'Acknowledge the alert to open a ticket first.');
 }
@@ -337,10 +293,7 @@ function enterStage(c, id, now) {
 }
 
 export function acknowledge(c) {
-<<<<<<< HEAD
   if (c.readOnly) throw new HttpError(403, READ_ONLY);
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   if (c.status !== 'monitoring') throw new HttpError(409, 'The alert has already been acknowledged.');
   if (!c.alert) throw new HttpError(409, 'There is no alert in the queue yet.');
   const scn = getScenario(c.scenarioId);
@@ -481,10 +434,7 @@ function gradeForm(c, def, st, values, links, stream) {
     const fs = (st.fields[f.id] ||= { credit: 0, best: 0, locked: false });
     if (!fs.locked) {
       const g = gradeField(f, values[f.id], { stream, case: c });
-<<<<<<< HEAD
       fs.tries = (fs.tries || 0) + 1;
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       fs.value = values[f.id];
       fs.credit = g.credit;
       fs.best = Math.max(fs.best, g.credit * factor);
@@ -499,7 +449,6 @@ function gradeForm(c, def, st, values, links, stream) {
     const msgs = [];
     const v = verdictOf(fs.credit);
     if (fs.detail) msgs.push(fs.detail);
-<<<<<<< HEAD
     // Teaching scenarios may attach coaching to a specific wrong answer and
     // give the answer away after repeated tries. Assessment scenarios define
     // neither, so they keep the single generic hint.
@@ -507,15 +456,11 @@ function gradeForm(c, def, st, values, links, stream) {
     if (coach) msgs.push(coach);
     else if (v === 'incorrect' && f.key?.hint && st.attempts < maxAttempts) msgs.push(f.key.hint);
     if (v !== 'correct' && f.key?.reveal && fs.tries >= 3) msgs.push(`Shown after three tries: ${f.key.reveal}`);
-=======
-    if (v === 'incorrect' && f.key?.hint && st.attempts < maxAttempts) msgs.push(f.key.hint);
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     if (f.linkable && v === 'correct' && !fs.supported) msgs.push('Accepted, but the linked evidence does not corroborate it. Link the pinned event that shows this.');
     fs.message = msgs.join(' ') || undefined;
   }
 }
 
-<<<<<<< HEAD
 export function coachFor(f, value) {
   const k = f.key?.coach;
   if (!k) return null;
@@ -523,8 +468,6 @@ export function coachFor(f, value) {
   return k[String(value ?? '').toLowerCase()] || null;
 }
 
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 function scoreForm(def, st) {
   let earned = 0;
   let max = 0;
@@ -549,12 +492,9 @@ export function submit(c, body = {}) {
   stream.ensure(now);
   const actor = actorOf(c);
   let values = {};
-<<<<<<< HEAD
   const blocked = scn.guard?.(def.id, c);
   if (blocked) throw new HttpError(409, blocked);
   const finalize = !!body.finalize && !def.noFinalize;
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
   if (def.kind === 'form') {
     values = { ...(body.values || {}) };
@@ -566,11 +506,7 @@ export function submit(c, body = {}) {
     st.draft = { values, links };
     gradeForm(c, def, st, values, links, stream);
     const allCorrect = def.fields.every((f) => verdictOf(st.fields[f.id].credit) === 'correct' && (!f.linkable || st.fields[f.id].supported));
-<<<<<<< HEAD
     const complete = (def.attempts || 1) <= 1 || finalize || allCorrect || st.attempts >= def.attempts;
-=======
-    const complete = (def.attempts || 1) <= 1 || body.finalize || allCorrect || st.attempts >= def.attempts;
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     if (!complete) {
       const right = def.fields.filter((f) => verdictOf(st.fields[f.id].credit) === 'correct').length;
       log(c, actor, 'stage', `${def.label}: findings submitted for review (attempt ${st.attempts} of ${def.attempts}). ${right} of ${def.fields.length} accepted.`, { ts: now });
@@ -625,20 +561,14 @@ export function submit(c, body = {}) {
 }
 
 export function removeCase(c) {
-<<<<<<< HEAD
   if (c.kind === 'preview') throw new HttpError(403, READ_ONLY);
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   streams.delete(c.id);
   store.remove(c.id);
 }
 
-<<<<<<< HEAD
 export function dropPreview(id) {
   streams.delete(id);
   ephemeral.delete(id);
 }
 
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 export { describeValue, describeExpected };

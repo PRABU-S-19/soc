@@ -2,6 +2,7 @@
 
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { start, stop, api, findLeaks, waitForAlert, solveStage, engine, getScenario, sleep } from './helpers.mjs';
 
 const DEMO = 'demo-portal-login';
@@ -423,7 +424,7 @@ test('the walkthrough preview is read-only, redacted and creates no cases', asyn
 test('frontend source and the built bundle contain no answer material', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
-  const root = new URL('../client/', import.meta.url).pathname;
+  const root = fileURLToPath(new URL('../client/', import.meta.url));
   const files = [];
   const walk = (dir) => { for (const f of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, f.name); if (f.isDirectory()) walk(p); else if (/\.(jsx?|css|html)$/.test(f.name)) files.push(p); } };
   walk(path.join(root, 'src'));

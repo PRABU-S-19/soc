@@ -49,7 +49,6 @@ export const api = {
   submit: (id, body) => call('POST', `/api/cases/${id}/submit`, body),
 };
 
-
 // Newbie Demo Mode and the homepage walkthrough. Separate from the case API.
 export const demoApi = {
   info: () => call('GET', '/api/demo/info'),

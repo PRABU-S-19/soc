@@ -8,11 +8,12 @@
 // default tests/ui/shots), PLAYWRIGHT (module path, default 'playwright'),
 // SOC_SIM_DATA (the server's case store file, to count demo sessions).
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 const { chromium } = await import(process.env.PLAYWRIGHT || 'playwright');
 const base = process.env.BASE || 'http://localhost:4000';
-const out = process.env.OUT || new URL('./shots', import.meta.url).pathname;
+const out = process.env.OUT || fileURLToPath(new URL('./shots', import.meta.url));
 fs.mkdirSync(out, { recursive: true });
-const DATA = process.env.SOC_SIM_DATA || new URL('../../data/cases.json', import.meta.url).pathname;
+const DATA = process.env.SOC_SIM_DATA || fileURLToPath(new URL('../../data/cases.json', import.meta.url));
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();

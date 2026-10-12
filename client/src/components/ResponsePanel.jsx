@@ -34,17 +34,11 @@ export default function ResponsePanel({ cs, onCase }) {
 
   const finish = async () => {
     setBusy(true);
-    try {
-      onCase((await api.submit(cs.id, {})).case);
-    } catch (e) {
-      setErr(e);
-      setBusy(false);
-    }
+    try { onCase((await api.submit(cs.id, {})).case); } catch (e) { setErr(e); setBusy(false); }
   };
 
   const iocs = cs.iocs.map((i) => i.value);
   let targetInput;
-
   if (def.target === 'host') {
     targetInput = (
       <select className="input" value={target} onChange={(e) => { setTarget(e.target.value); setConfirm(null); }} aria-label="Target host">
@@ -76,7 +70,6 @@ export default function ResponsePanel({ cs, onCase }) {
   }
 
   const done = [...r.actions].reverse();
-
   return (
     <div className="response">
       <form className="composer" data-tour="composer" onSubmit={(e) => { e.preventDefault(); exec(false); }}>

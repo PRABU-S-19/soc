@@ -11,10 +11,7 @@ import {
 import { publicEvent } from './engine/logstream.js';
 import { HttpError } from './engine/response.js';
 import { exportMarkdown } from './engine/report.js';
-<<<<<<< HEAD
 import { demoRouter, tourRouter } from './demo/routes.js';
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -32,19 +29,12 @@ app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }));
 app.get('/api/scenarios', (req, res) => res.json(listScenarios()));
 
 app.get('/api/cases', (req, res) => {
-<<<<<<< HEAD
   // Guided-demo sessions are kept apart from assessment cases.
   res.json(store.all().filter((c) => !c.kind).sort((a, b) => b.t0 - a.t0).map(caseSummary));
 });
 app.post('/api/cases', wrap((req, res) => {
   const { scenarioId, analyst } = req.body || {};
   const c = createCase({ scenarioId, analyst });
-=======
-  res.json(store.all().sort((a, b) => b.t0 - a.t0).map(caseSummary));
-});
-app.post('/api/cases', wrap((req, res) => {
-  const c = createCase(req.body || {});
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   res.status(201).json(publicCase(c));
 }));
 app.get('/api/cases/:id', wrap((req, res) => res.json(publicCase(load(req)))));
@@ -138,12 +128,9 @@ app.get('/api/cases/:id/stream', wrap((req, res) => {
   req.on('close', () => clearInterval(timer));
 }));
 
-<<<<<<< HEAD
 app.use('/api/demo', demoRouter);
 app.use('/api/tour', tourRouter);
 
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 
 const dist = path.join(here, '..', 'client', 'dist');
