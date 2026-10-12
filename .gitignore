@@ -1,0 +1,4 @@
+node_modules/
+data/*.json
+data/*.tmp
+tests/ui/shots/
