@@ -52,9 +52,13 @@ export default function ReportPanel({ cs }) {
   return (
     <div className="panel">
       <div className="scroll pad report">
+<<<<<<< HEAD
         {cs.kind === 'demo' && <p className="note" data-tour="report-note">Guided demo result. You were coached and could retry, so this figure is a learning record, not an assessment or a certification. It is not listed with, and does not affect, normal simulation cases.</p>}
         {r.sample && <p className="note" data-tour="report-note">Sample report for the walkthrough. Answers, expected answers and explanations are left out here; your own closed ticket shows them in full.</p>}
         <header className="rep-head" data-tour="report-head">
+=======
+        <header className="rep-head">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <div>
             <p className="meta">After-action review, {cs.ticket}</p>
             <h2>{cs.title}</h2>
@@ -65,17 +69,28 @@ export default function ReportPanel({ cs }) {
         <dl className="metrics">
           {cs.metrics.map((m) => <div key={m.id}><dt>{m.label}</dt><dd>{duration(m.seconds)}</dd></div>)}
         </dl>
+<<<<<<< HEAD
         <div className="rep-export" data-tour="report-export">
+=======
+        <div className="rep-export">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <a className="btn btn-sm" href={`/api/cases/${cs.id}/export?format=md`}>Download case file (Markdown)</a>
           <a className="btn btn-sm" href={`/api/cases/${cs.id}/export?format=json`}>Download case file (JSON)</a>
         </div>
 
+<<<<<<< HEAD
         <div data-tour="report-stages">
           <h3 className="rep-h">Scoring by stage</h3>
           {r.stages.map((s) => <Stage key={s.id} s={s} />)}
         </div>
 
         <h3 className="rep-h" data-tour="report-truth">What actually happened</h3>
+=======
+        <h3 className="rep-h">Scoring by stage</h3>
+        {r.stages.map((s) => <Stage key={s.id} s={s} />)}
+
+        <h3 className="rep-h">What actually happened</h3>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <p className="prose">{r.truth.summary}</p>
         <ol className="truth">
           {r.truth.timeline.map((t) => <li key={t.ts + t.text}><span className="mono">{stamp(t.ts)}</span><span>{t.text}</span></li>)}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Console from './Console.jsx';
 import CaseView from './CaseView.jsx';
+<<<<<<< HEAD
 import DemoIntro from './tour/DemoIntro.jsx';
 import DemoPage from './tour/DemoPage.jsx';
 import DemoSummary from './tour/DemoSummary.jsx';
@@ -25,11 +26,22 @@ export default function App() {
   const [route, setRoute] = useState(parse);
   // Homepage walkthrough: an overlay that lives above whichever page is showing.
   const [tour, setTour] = useState(() => tourStore.get());
+=======
+
+const parse = () => {
+  const m = window.location.hash.match(/^#\/case\/([a-z0-9]+)/i);
+  return m ? { page: 'case', id: m[1] } : { page: 'home' };
+};
+
+export default function App() {
+  const [route, setRoute] = useState(parse);
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   useEffect(() => {
     const on = () => setRoute(parse());
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
+<<<<<<< HEAD
 
   const nav = {
     goHome: () => go('#/'),
@@ -52,4 +64,8 @@ export default function App() {
       {tour !== null && <HomeTour initial={tour} onClose={() => setTour(null)} />}
     </>
   );
+=======
+  if (route.page === 'case') return <CaseView key={route.id} id={route.id} goHome={() => { window.location.hash = '#/'; }} />;
+  return <Console open={(id) => { window.location.hash = `#/case/${id}`; }} />;
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 }

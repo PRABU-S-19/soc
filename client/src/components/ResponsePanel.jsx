@@ -72,7 +72,11 @@ export default function ResponsePanel({ cs, onCase }) {
   const done = [...r.actions].reverse();
   return (
     <div className="response">
+<<<<<<< HEAD
       <form className="composer" data-tour="composer" onSubmit={(e) => { e.preventDefault(); exec(false); }}>
+=======
+      <form className="composer" onSubmit={(e) => { e.preventDefault(); exec(false); }}>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <label className="fld-label" htmlFor="act-type">Action</label>
         <select id="act-type" className="input" value={type} onChange={(e) => { setType(e.target.value); setTarget(''); setConfirm(null); setErr(null); }}>
           {PHASES.map((p) => (
@@ -100,7 +104,11 @@ export default function ResponsePanel({ cs, onCase }) {
         )}
       </form>
 
+<<<<<<< HEAD
       <section className="board" data-tour="env-state">
+=======
+      <section className="board">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <h3>Environment state</h3>
         {!r.hosts.length && !r.blocks.length && !r.accounts.length && !r.notified.length && <p className="muted">No response actions have changed anything yet.</p>}
         {r.hosts.length > 0 && (
@@ -113,7 +121,11 @@ export default function ResponsePanel({ cs, onCase }) {
         {r.notified.length > 0 && <dl className="state"><div><dt>Notified</dt><dd>{r.notified.join(', ')}</dd></div></dl>}
       </section>
 
+<<<<<<< HEAD
       <section className="board" data-tour="action-log">
+=======
+      <section className="board">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <h3>Action log <span className="muted">{done.length}</span></h3>
         {!done.length && <p className="muted">Executed actions appear here and in the live feed as audit events.</p>}
         <ol className="actions">
@@ -129,7 +141,11 @@ export default function ResponsePanel({ cs, onCase }) {
         </ol>
       </section>
 
+<<<<<<< HEAD
       <div className="stage-actions" data-tour="declare">
+=======
+      <div className="stage-actions">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         {!finishing ? (
           <button type="button" className="btn" onClick={() => setFinishing(true)}>Declare response complete</button>
         ) : (

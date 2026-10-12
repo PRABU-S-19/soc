@@ -1,4 +1,7 @@
 node_modules/
 data/*.json
 data/*.tmp
+<<<<<<< HEAD
 tests/ui/shots/
+=======
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f

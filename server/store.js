@@ -30,6 +30,7 @@ function flush() {
 }
 
 export const store = {
+<<<<<<< HEAD
   // Demo tickets draw from their own counter so they never consume or
   // reorder assessment ticket numbers.
   nextSeq(kind) {
@@ -37,6 +38,9 @@ export const store = {
     db.seq += 1;
     return db.seq;
   },
+=======
+  nextSeq() { db.seq += 1; return db.seq; },
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   all() { return Object.values(db.cases); },
   get(id) { return db.cases[id]; },
   put(c) { db.cases[c.id] = c; this.save(); },

@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import { stamp, Severity, ErrorNote, useLocal } from './components/bits.jsx';
 
+<<<<<<< HEAD
 export default function Console({ open, startTour, openDemo }) {
+=======
+export default function Console({ open }) {
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   const [scenarios, setScenarios] = useState(null);
   const [cases, setCases] = useState(null);
   const [name, setName] = useLocal('soc-sim-analyst', '');
@@ -26,13 +30,18 @@ export default function Console({ open, startTour, openDemo }) {
           <h1>SOC simulation</h1>
           <p className="lead">Work a ticket the way a SOC does: watch the queue, triage at Tier 1, hand off to Tier 2, investigate and validate, respond as Tier 3, close. Logs are generated live and every decision is checked against the evidence.</p>
         </div>
+<<<<<<< HEAD
         <label className="analyst" data-tour="home-analyst">
+=======
+        <label className="analyst">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <span>Analyst name</span>
           <input className="input" value={name} onChange={(e) => { setName(e.target.value); setErr(null); }} placeholder="e.g. a.rivera" maxLength={40} />
         </label>
       </header>
       <ErrorNote error={err} onDismiss={() => setErr(null)} />
 
+<<<<<<< HEAD
       <section className="learn" data-tour="home-learn" aria-labelledby="learn-h">
         <h2 id="learn-h">New here?</h2>
         <div className="learn-grid">
@@ -57,6 +66,14 @@ export default function Console({ open, startTour, openDemo }) {
         <div className="scenarios">
           {(scenarios || []).map((s) => (
             <article className="scenario" key={s.id} data-tour="home-scenario">
+=======
+      <section>
+        <h2>Start a shift</h2>
+        {!scenarios && <p className="muted">Loading…</p>}
+        <div className="scenarios">
+          {(scenarios || []).map((s) => (
+            <article className="scenario" key={s.id}>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
               <p className="meta">Queue: {s.queue}</p>
               <h3>{s.title}</h3>
               <p>{s.blurb}</p>
@@ -66,13 +83,21 @@ export default function Console({ open, startTour, openDemo }) {
                 <div><dt>Tiers</dt><dd>{s.tiers}</dd></div>
                 <div><dt>Log sources</dt><dd>{s.sources.length}</dd></div>
               </dl>
+<<<<<<< HEAD
               <button type="button" className="btn btn-primary" data-tour="home-start" onClick={() => start(s.id)} disabled={busy === s.id}>{busy === s.id ? 'Starting…' : 'Start shift'}</button>
+=======
+              <button type="button" className="btn btn-primary" onClick={() => start(s.id)} disabled={busy === s.id}>{busy === s.id ? 'Starting…' : 'Start shift'}</button>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
             </article>
           ))}
         </div>
       </section>
 
+<<<<<<< HEAD
       <section data-tour="home-cases">
+=======
+      <section>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <h2>Cases</h2>
         {cases && !cases.length && <p className="muted">No cases yet. Starting a shift creates one.</p>}
         {cases && cases.length > 0 && (

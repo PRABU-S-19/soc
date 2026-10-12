@@ -5,7 +5,10 @@ import ToolsPanel from './components/ToolsPanel.jsx';
 import Workflow from './components/Workflow.jsx';
 import ReportPanel from './components/ReportPanel.jsx';
 import { Severity, duration, ErrorNote } from './components/bits.jsx';
+<<<<<<< HEAD
 import { bridge } from './tour/bridge.js';
+=======
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 const MAX_LIVE = 300;
 const TIER_NAME = { L1: 'Tier 1', L2: 'Tier 2', L3: 'Tier 3' };
@@ -17,7 +20,11 @@ function StageRail({ cs, review, setReview }) {
     if (g && g.tier === s.tier) g.stages.push(s); else groups.push({ tier: s.tier, stages: [s] });
   }
   return (
+<<<<<<< HEAD
     <nav className="rail" aria-label="Ticket stages" data-tour="rail">
+=======
+    <nav className="rail" aria-label="Ticket stages">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       {groups.map((g, gi) => (
         <div className="rail-group" key={gi} style={{ flexGrow: g.stages.length }}>
           <span className="rail-tier">{TIER_NAME[g.tier]}</span>
@@ -34,7 +41,11 @@ function StageRail({ cs, review, setReview }) {
                 </>
               );
               return (
+<<<<<<< HEAD
                 <li key={s.id} className={cls} aria-current={current ? 'step' : undefined} data-tour="rail-step" data-stage={s.id}>
+=======
+                <li key={s.id} className={cls} aria-current={current ? 'step' : undefined}>
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
                   {s.status === 'done' && s.review
                     ? <button type="button" onClick={() => setReview(review === s.id ? null : s.id)} title="Review what was submitted">{inner}</button>
                     : <span>{inner}</span>}
@@ -131,6 +142,7 @@ export default function CaseView({ id, goHome }) {
     }
   }, []);
 
+<<<<<<< HEAD
   // Guided tours switch tabs and read the current search through this bridge.
   const tourRef = useRef({});
   tourRef.current = { tab, search, cs };
@@ -149,6 +161,8 @@ export default function CaseView({ id, goHome }) {
   }, [id, refresh]);
   useEffect(() => { bridge.emit('case'); }, [cs?.rev, cs?.status, cs?.stage, tab]);
 
+=======
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   const pinned = useMemo(() => new Set((cs?.pins || []).map((p) => p.eventId)), [cs]);
   const fmtVal = (v) => {
     let s = String(v).replace(/"/g, '*');
@@ -157,7 +171,11 @@ export default function CaseView({ id, goHome }) {
   };
   const ctx = useMemo(() => ({
     pinned,
+<<<<<<< HEAD
     canPin: cs?.status === 'open' && !cs?.readOnly,
+=======
+    canPin: cs?.status === 'open',
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     onPin: (ev, isPinned) => act(() => (isPinned ? api.unpin(id, ev.id) : api.pin(id, ev.id))),
     onFilter: (k, v, neg) => {
       setSearch((s) => ({ ...s, q: `${s.q} ${neg ? '-' : ''}${k}:${fmtVal(v)}`.trim(), nonce: s.nonce + 1 }));
@@ -169,10 +187,17 @@ export default function CaseView({ id, goHome }) {
       setTab('search');
     },
     onLookup: (tool, input) => { setPrefill({ tool, input, nonce: Date.now() }); setTab('tools'); },
+<<<<<<< HEAD
     onIoc: cs?.status === 'open' && !cs?.readOnly ? (value) => act(() => api.addIoc(id, value)) : null,
     goTab: setTab,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [pinned, cs?.status, cs?.readOnly, id]);
+=======
+    onIoc: cs?.status === 'open' ? (value) => act(() => api.addIoc(id, value)) : null,
+    goTab: setTab,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [pinned, cs?.status, id]);
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
   if (loadErr) {
     return <div className="page"><ErrorNote error={loadErr} /><p><button type="button" className="btn" onClick={goHome}>Back to all cases</button></p></div>;
@@ -189,6 +214,7 @@ export default function CaseView({ id, goHome }) {
 
   return (
     <div className="case">
+<<<<<<< HEAD
       <header className="topbar" data-tour="topbar">
         <button type="button" className="link back" onClick={goHome}>{cs.kind ? 'Home' : 'All cases'}</button>
         <div className="top-id" data-tour="ticket">
@@ -200,6 +226,15 @@ export default function CaseView({ id, goHome }) {
           <h1>{cs.status === 'monitoring' ? 'Monitoring the alert queue' : cs.title}</h1>
         </div>
         <dl className="top-facts" data-tour="top-facts">
+=======
+      <header className="topbar">
+        <button type="button" className="link back" onClick={goHome}>All cases</button>
+        <div className="top-id">
+          <span className="ticket mono">{cs.status === 'monitoring' ? 'No ticket yet' : cs.ticket}</span>
+          <h1>{cs.status === 'monitoring' ? 'Monitoring the alert queue' : cs.title}</h1>
+        </div>
+        <dl className="top-facts">
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           {cs.severity && <div><dt>Severity</dt><dd><Severity level={cs.severity} /></dd></div>}
           <div><dt>Status</dt><dd>{closed ? 'Closed' : cs.status === 'monitoring' ? 'Monitoring' : `Open, ${TIER_NAME[cs.tier]}`}</dd></div>
           {elapsed != null && <div><dt>{closed ? 'Time to close' : 'Since alert'}</dt><dd className="mono">{duration(Math.max(0, elapsed))}</dd></div>}
@@ -216,9 +251,15 @@ export default function CaseView({ id, goHome }) {
       )}
       {err && <div className="flash flash-bad"><ErrorNote error={err} onDismiss={() => setErr(null)} /></div>}
       <div className="split">
+<<<<<<< HEAD
         <main className="main" data-tour="main">
           <div className="tabs" role="tablist" data-tour="tabs">
             {tabs.map(([k, l]) => <button type="button" role="tab" key={k} data-tour={`tab-${k}`} aria-selected={tab === k} className={`tab${tab === k ? ' is-on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
+=======
+        <main className="main">
+          <div className="tabs" role="tablist">
+            {tabs.map(([k, l]) => <button type="button" role="tab" key={k} aria-selected={tab === k} className={`tab${tab === k ? ' is-on' : ''}`} onClick={() => setTab(k)}>{l}</button>)}
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           </div>
           {tab === 'feed' && <LiveFeed live={live} paused={paused} setPaused={setPaused} held={held} ctx={ctx} sources={cs.sources} connected={connected} closed={closed} />}
           <div hidden={tab !== 'search'} className="tab-keep"><SearchPanel caseId={id} search={search} setSearch={setSearch} ctx={ctx} sources={cs.sources} /></div>

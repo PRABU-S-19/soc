@@ -126,7 +126,11 @@ export function gradeField(field, value, ctx) {
     const tags = ctx.stream.get(value)?._tags || [];
     let credit = 0;
     for (const [tag, c] of Object.entries(key.accept || {})) if (tags.includes(tag)) credit = Math.max(credit, c);
+<<<<<<< HEAD
     return { credit, detail: credit > 0 && credit < 1 ? (key.partialDetail || 'That event is part of the activity, but an earlier one exists.') : undefined };
+=======
+    return { credit, detail: credit > 0 && credit < 1 ? 'That event is part of the activity, but an earlier one exists.' : undefined };
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   }
 
   if (t === 'checks') {

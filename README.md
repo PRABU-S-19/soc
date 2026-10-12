@@ -26,7 +26,11 @@ case store, default `data/cases.json`).
     npm run dev:server         # API on :4000, restarts on change
     npm run dev:client         # Vite on :5173, proxies /api to :4000
     npm run build              # rebuild client/dist
+<<<<<<< HEAD
     npm test                   # end-to-end API tests (about 90 s; they wait for real alert timers)
+=======
+    npm test                   # end-to-end API tests (about 45 s; they wait for real alert timers)
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 ## Scenarios
 
@@ -38,6 +42,7 @@ case store, default `data/cases.json`).
 Catalogue entries describe only the alert. What is behind it is in the
 after-action review.
 
+<<<<<<< HEAD
 ## For beginners: Newbie Demo Mode and the walkthrough
 
 The home page has a "New here?" section with two optional entry points.
@@ -56,6 +61,8 @@ labelled a guided learning summary, not an assessment.
 `docs/BEGINNER_MODE.md` is the implementation report: files, the guided
 sequence, how validation and isolation work, and the test results.
 
+=======
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 ## How it works
 
     server/
@@ -73,6 +80,7 @@ sequence, how validation and isolation work, and the test results.
         response.js         response actions, environment state, objective evaluation
         report.js           after-action report and Markdown export
         common.js           shared scenario helpers (beacon generator)
+<<<<<<< HEAD
       scenarios/            one module per scenario (demo-portal.js is the hidden demo scenario)
       demo/
         guide.js            Newbie Demo script (public) and its checks (server only)
@@ -83,6 +91,11 @@ sequence, how validation and isolation work, and the test results.
       tour/                 GuidedTour (reusable), HomeTour, DemoPage, DemoIntro, DemoSummary, Quiz
     tests/                  node:test suites driving the real API
     docs/                   BEGINNER_MODE.md
+=======
+      scenarios/            one module per scenario
+    client/src/             React UI (Vite)
+    tests/                  node:test suites driving the real API
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 **Real-time logs.** Each case has a random seed and a start time. Every
 one-second slot is generated deterministically from them, so history (30 to
@@ -150,6 +163,7 @@ not actually support.
 - Free-text notes and summaries are recorded and length-checked, not graded
   for content.
 - A live case stops generating new log lines six hours after it starts.
+<<<<<<< HEAD
 - Demo sessions are removed 24 hours after they start. Walkthrough sample
   tickets live in memory only and are rebuilt every 20 minutes.
 - In Newbie Demo Mode the investigation summary is checked for its six
@@ -160,3 +174,8 @@ not actually support.
   in the noise use those too, so a `.example` suffix is not a tell.
 #   S O C - u p d a t e d  
  
+=======
+- All organisation data is fictional. External infrastructure uses the
+  reserved `.example` TLD and documentation IP ranges; benign destinations
+  in the noise use those too, so a `.example` suffix is not a tell.
+>>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
