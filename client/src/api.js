@@ -48,7 +48,7 @@ export const api = {
   action: (id, body) => call('POST', `/api/cases/${id}/actions`, body),
   submit: (id, body) => call('POST', `/api/cases/${id}/submit`, body),
 };
-<<<<<<< HEAD
+
 
 // Newbie Demo Mode and the homepage walkthrough. Separate from the case API.
 export const demoApi = {
@@ -63,5 +63,3 @@ export const demoApi = {
   summary: (id) => call('GET', `/api/demo/${id}/summary`),
   preview: (point) => call('POST', '/api/tour/preview', { point }),
 };
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f

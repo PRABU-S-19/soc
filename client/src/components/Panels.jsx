@@ -19,23 +19,18 @@ export function LiveFeed({ live, paused, setPaused, held, ctx, sources, connecte
     if (n.has(s)) n.delete(s); else n.add(s);
     setHidden(n);
   };
+
   return (
     <div className="panel">
-<<<<<<< HEAD
       <div className="toolbar" data-tour="feed-toolbar">
-=======
-      <div className="toolbar">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <span className={`live-dot${connected && !paused && !closed ? ' is-on' : ''}`} aria-hidden="true" />
         <span className="toolbar-status">
           {closed ? 'Stream ended with the ticket' : !connected ? 'Reconnecting…' : paused ? `Paused, ${held} new line${held === 1 ? '' : 's'} waiting` : 'Streaming'}
         </span>
         {!closed && (
-<<<<<<< HEAD
-          <button type="button" className="btn btn-sm" data-tour="feed-pause" onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
-=======
-          <button type="button" className="btn btn-sm" onClick={() => setPaused(!paused)}>{paused ? 'Resume' : 'Pause'}</button>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
+          <button type="button" className="btn btn-sm" data-tour="feed-pause" onClick={() => setPaused(!paused)}>
+            {paused ? 'Resume' : 'Pause'}
+          </button>
         )}
         <div className="chips">
           {sources.map((s) => (
@@ -92,15 +87,9 @@ export function SearchPanel({ caseId, search, setSearch, ctx, sources }) {
 
   return (
     <div className="panel">
-<<<<<<< HEAD
       <form className="toolbar" data-tour="search-bar" onSubmit={run}>
-        <input data-tour="search-input" className="input mono grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder='Search logs, e.g. source:proxy dest_host:*.example' aria-label="Log query" spellCheck={false} />
+        <input data-tour="search-input" className="input mono grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Search logs, e.g. source:proxy dest_host:*.example" aria-label="Log query" spellCheck={false} />
         <button type="submit" className="btn btn-primary btn-sm" data-tour="search-run">Search</button>
-=======
-      <form className="toolbar" onSubmit={run}>
-        <input className="input mono grow" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder='Search logs, e.g. source:proxy dest_host:*.example' aria-label="Log query" spellCheck={false} />
-        <button type="submit" className="btn btn-primary btn-sm">Search</button>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <button type="button" className="btn btn-sm" onClick={() => { setDraft(''); setSearch({ q: '', source: '', nonce: search.nonce + 1 }); }}>Reset</button>
         <button type="button" className="link" onClick={() => setHelp(!help)} aria-expanded={help}>Query syntax</button>
       </form>
@@ -115,11 +104,7 @@ export function SearchPanel({ caseId, search, setSearch, ctx, sources }) {
         </div>
       )}
       <div className="toolbar toolbar-sub">
-<<<<<<< HEAD
         <div className="chips" data-tour="search-sources">
-=======
-        <div className="chips">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <button type="button" className={`chip${!search.source ? ' chip-on' : ''}`} onClick={() => setSearch({ ...search, source: '', nonce: search.nonce + 1 })}>All sources</button>
           {sources.map((s) => (
             <button type="button" key={s} className={`chip${search.source === s ? ' chip-on' : ''}`} onClick={() => setSearch({ ...search, source: search.source === s ? '' : s, nonce: search.nonce + 1 })}>
@@ -133,11 +118,7 @@ export function SearchPanel({ caseId, search, setSearch, ctx, sources }) {
             <button type="button" className="link" onClick={() => setSearch({ ...search, from: undefined, to: undefined, nonce: search.nonce + 1 })}>Clear time range</button>
           </span>
         )}
-<<<<<<< HEAD
         <span className="count" data-tour="search-count">{busy ? 'Searching…' : res ? `${res.total.toLocaleString()} event${res.total === 1 ? '' : 's'}, newest first` : ''}</span>
-=======
-        <span className="count">{busy ? 'Searching…' : res ? `${res.total.toLocaleString()} event${res.total === 1 ? '' : 's'}, newest first` : ''}</span>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       </div>
       <ErrorNote error={err} />
       <div className="scroll">
@@ -161,12 +142,9 @@ function AlertCard({ alert, caseId, ctx, related }) {
     api.events(caseId, alert.matched).then((r) => { if (!dead) setEvents(r.events.sort((a, b) => b.ts - a.ts)); }).catch(() => {});
     return () => { dead = true; };
   }, [caseId, alert.id]);
+
   return (
-<<<<<<< HEAD
     <section className="card" data-tour="alert-card">
-=======
-    <section className="card">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       <header className="card-head">
         <div>
           <p className="meta">{related ? 'Related alert' : 'Alert'} {alert.rule}, fired {stamp(alert.firedAt)} UTC</p>
@@ -176,35 +154,22 @@ function AlertCard({ alert, caseId, ctx, related }) {
       </header>
       <p className="lead">{alert.description}</p>
       <div className="cols-2">
-<<<<<<< HEAD
         <dl className="facts" data-tour="alert-facts">
-=======
-        <dl className="facts">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <div><dt>{alert.entity.host ? 'Host' : 'Source address'}</dt><dd>{alert.entity.host ? `${alert.entity.host} (${alert.entity.ip})` : alert.entity.ip}</dd></div>
           <div><dt>User</dt><dd>{alert.entity.user}</dd></div>
           {alert.details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
         </dl>
         {alert.guidance && (
-<<<<<<< HEAD
           <div data-tour="alert-runbook">
-=======
-          <div>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
             <h4>Runbook for this rule</h4>
             <ol className="steps">{alert.guidance.map((g) => <li key={g}>{g}</li>)}</ol>
           </div>
         )}
       </div>
-<<<<<<< HEAD
       <div data-tour="alert-matched">
         <h4>Events that matched the rule <span className="muted">(latest {alert.matched.length} of {alert.matchedTotal})</span></h4>
         {events ? <LogTable events={events} ctx={ctx} /> : <p className="muted">Loading…</p>}
       </div>
-=======
-      <h4>Events that matched the rule <span className="muted">(latest {alert.matched.length} of {alert.matchedTotal})</span></h4>
-      {events ? <LogTable events={events} ctx={ctx} /> : <p className="muted">Loading…</p>}
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
     </section>
   );
 }
@@ -239,14 +204,11 @@ export function EvidencePanel({ cs, ctx, act }) {
   const [val, setVal] = useState('');
   const open = cs.status === 'open';
   const pins = [...cs.pins].sort((a, b) => a.event.ts - b.event.ts);
+
   return (
     <div className="panel">
       <div className="scroll pad">
-<<<<<<< HEAD
         <section className="card" data-tour="pins">
-=======
-        <section className="card">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <header className="card-head"><h3>Pinned events</h3><span className="muted">{pins.length} in the case file, oldest first</span></header>
           {!pins.length && <Empty title="Nothing pinned yet">Use Pin on any log line. Pinned events stay with the ticket through every tier and are what your findings are checked against.</Empty>}
           <ul className="pins">
@@ -267,11 +229,7 @@ export function EvidencePanel({ cs, ctx, act }) {
             ))}
           </ul>
         </section>
-<<<<<<< HEAD
         <section className="card" data-tour="iocs">
-=======
-        <section className="card">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <header className="card-head"><h3>Indicators</h3><span className="muted">{cs.iocs.length} recorded</span></header>
           {!cs.iocs.length && <p className="muted">Add domains, addresses and hashes as you confirm them. They are offered as targets when blocking.</p>}
           {cs.iocs.length > 0 && (
@@ -315,13 +273,10 @@ export function HistoryPanel({ cs, act }) {
   const [text, setText] = useState('');
   const rows = cs.history.filter((h) => kind === 'all' || h.kind === kind || (kind === 'system' && ['system', 'alert', 'qa'].includes(h.kind)) || (kind === 'stage' && h.kind === 'qa'));
   const stageLabel = Object.fromEntries(cs.stages.map((s) => [s.id, s.label]));
+
   return (
     <div className="panel">
-<<<<<<< HEAD
       <div className="toolbar" data-tour="history-filters">
-=======
-      <div className="toolbar">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         <div className="chips">
           {KINDS.map(([k, l]) => <button type="button" key={k} className={`chip${kind === k ? ' chip-on' : ''}`} onClick={() => setKind(k)}>{l}</button>)}
         </div>
@@ -334,11 +289,7 @@ export function HistoryPanel({ cs, act }) {
             <button type="submit" className="btn btn-sm">Add note</button>
           </form>
         )}
-<<<<<<< HEAD
         <ol className="history" data-tour="history">
-=======
-        <ol className="history">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           {[...rows].reverse().map((h, i) => (
             <li key={`${h.ts}-${i}`} className={`h-${h.kind}`}>
               <span className="h-time mono">{stamp(h.ts)}</span>

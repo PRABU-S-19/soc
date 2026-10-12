@@ -142,26 +142,16 @@ export default function ToolsPanel({ cs, ctx, prefill, onCase }) {
 
   return (
     <div className="panel tools">
-<<<<<<< HEAD
       <nav className="tool-list" aria-label="Tools" data-tour="tool-list">
         {cs.tools.map((t) => (
           <button type="button" key={t.id} data-tour="tool" data-tool={t.id} className={`tool${tool === t.id ? ' is-on' : ''}`} onClick={() => { setTool(t.id); setErr(null); }} aria-current={tool === t.id}>
-=======
-      <nav className="tool-list" aria-label="Tools">
-        {cs.tools.map((t) => (
-          <button type="button" key={t.id} className={`tool${tool === t.id ? ' is-on' : ''}`} onClick={() => { setTool(t.id); setErr(null); }} aria-current={tool === t.id}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
             <span>{t.label}</span>
             {!t.available && <span className="lock">{cs.status === 'open' ? `Tier ${t.tier}` : 'Unavailable'}</span>}
           </button>
         ))}
       </nav>
       <div className="tool-main">
-<<<<<<< HEAD
         <form className="tool-form" data-tour="tool-form" onSubmit={(e) => { e.preventDefault(); run(); }}>
-=======
-        <form className="tool-form" onSubmit={(e) => { e.preventDefault(); run(); }}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <p className="lead">{def.desc}</p>
           {!def.available && (
             <p className="note">{cs.status === 'closed' ? 'The ticket is closed; tools are no longer available.' : cs.status === 'monitoring' ? 'Open a ticket by acknowledging an alert to use tools.' : `${def.label} requires Tier ${def.tier} access. It unlocks when the ticket is escalated.`}</p>
@@ -177,11 +167,7 @@ export default function ToolsPanel({ cs, ctx, prefill, onCase }) {
           <datalist id="dl-accounts">{cs.directory.accounts.map((a) => <option key={a.sam} value={a.sam}>{a.name}</option>)}</datalist>
         </form>
         <ErrorNote error={err} onDismiss={() => setErr(null)} />
-<<<<<<< HEAD
         <div className="scroll" data-tour="tool-results">
-=======
-        <div className="scroll">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           {!runs.length && <p className="muted pad">Results appear here. Every run is recorded in the case history.</p>}
           {runs.map((r) => (
             <section className="card" key={r.id}>

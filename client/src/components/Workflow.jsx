@@ -2,10 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { clock, stamp, SourceTag, Severity, Verdict, ErrorNote, duration } from './bits.jsx';
 import ResponsePanel from './ResponsePanel.jsx';
-<<<<<<< HEAD
 import { bridge } from '../tour/bridge.js';
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
 
 function PinChoice({ pins, selected, onToggle, single, name, disabled }) {
   if (!pins.length) return <p className="hint-empty">No pinned events yet. Pin log lines from the live feed, search or alert tab, then choose them here.</p>;
@@ -179,11 +176,7 @@ function Field({ f, value, onChange, cs, links, onLinks, fb }) {
 
   const linked = links || [];
   return (
-<<<<<<< HEAD
     <div className={`fld${fb ? ` fld-${fb.verdict}` : ''}`} data-tour="fld" data-fld={f.id}>
-=======
-    <div className={`fld${fb ? ` fld-${fb.verdict}` : ''}`}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       <div className="fld-head">
         <label className="fld-label" id={`${id}-l`} htmlFor={['text', 'longtext', 'host', 'account'].includes(f.type) ? id : undefined}>{f.label}</label>
         {fb && <Verdict v={fb.verdict} supported={fb.supported} />}
@@ -212,7 +205,6 @@ function StageForm({ cs, onCase }) {
   const [confirm, setConfirm] = useState(false);
   const dirty = useRef(false);
 
-<<<<<<< HEAD
   // Lets the guided tour read the answers as they stand, for a pre-check.
   const latest = useRef({ values, links });
   latest.current = { values, links };
@@ -222,8 +214,6 @@ function StageForm({ cs, onCase }) {
     return () => { if (bridge.form === me) bridge.form = null; };
   }, [st.id]);
 
-=======
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
   // Save the draft shortly after each change so a reload loses nothing.
   useEffect(() => {
     if (!dirty.current) return undefined;
@@ -255,17 +245,11 @@ function StageForm({ cs, onCase }) {
   };
 
   return (
-<<<<<<< HEAD
     <form className="stage-form" data-tour="stage-form" onSubmit={(e) => { e.preventDefault(); submit(false); }}>
       {multi && st.attemptsUsed > 0 && (
         <p className="note">{st.noFinalize
           ? 'Returned with notes. Accepted answers are locked. Correct the others and submit again.'
           : `Review round ${st.attemptsUsed} of ${st.attempts} returned. Accepted findings are locked. ${left} round${left === 1 ? '' : 's'} left.`}</p>
-=======
-    <form className="stage-form" onSubmit={(e) => { e.preventDefault(); submit(false); }}>
-      {multi && st.attemptsUsed > 0 && (
-        <p className="note">Review round {st.attemptsUsed} of {st.attempts} returned. Accepted findings are locked. {left} round{left === 1 ? '' : 's'} left.</p>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       )}
       {st.fields.map((f) => (
         <Field
@@ -277,13 +261,8 @@ function StageForm({ cs, onCase }) {
       ))}
       <ErrorNote error={err} onDismiss={() => setErr(null)} />
       <div className="stage-actions">
-<<<<<<< HEAD
         <button type="submit" className="btn btn-primary" data-tour="submit" disabled={busy}>{busy ? 'Submitting…' : st.submitLabel || 'Submit'}</button>
         {multi && !st.noFinalize && st.attemptsUsed > 0 && !confirm && <button type="button" className="btn" onClick={() => setConfirm(true)} disabled={busy}>Finalise as is</button>}
-=======
-        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Submitting…' : st.submitLabel || 'Submit'}</button>
-        {multi && st.attemptsUsed > 0 && !confirm && <button type="button" className="btn" onClick={() => setConfirm(true)} disabled={busy}>Finalise as is</button>}
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
         {confirm && (
           <span className="confirm">
             Unaccepted findings will score zero.
@@ -313,11 +292,7 @@ function Monitor({ cs, onCase }) {
   }
   const age = Math.max(0, Math.round((now - a.firedAt) / 1000));
   return (
-<<<<<<< HEAD
     <div className="queue" data-tour="queue">
-=======
-    <div className="queue">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
       <h3>Alert queue <span className="count-badge">1</span></h3>
       <article className="queue-item">
         <p className="meta">{a.rule}, {clock(a.firedAt)} UTC, waiting {duration(age)}</p>
@@ -325,11 +300,7 @@ function Monitor({ cs, onCase }) {
         <p><Severity level={a.severity} /> {a.entity.host || a.entity.ip}, {a.entity.user}</p>
         <ErrorNote error={err} />
         <button
-<<<<<<< HEAD
           type="button" className="btn btn-primary" data-tour="ack" disabled={busy}
-=======
-          type="button" className="btn btn-primary" disabled={busy}
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           onClick={async () => { setBusy(true); try { onCase(await api.ack(cs.id)); } catch (e) { setErr(e); setBusy(false); } }}
         >
           {busy ? 'Opening ticket…' : 'Acknowledge and open ticket'}
@@ -368,17 +339,10 @@ export default function Workflow({ cs, onCase, review, setReview, ctx }) {
   const st = cs.current;
   const reviewed = review ? cs.stages.find((s) => s.id === review && s.status === 'done') : null;
   return (
-<<<<<<< HEAD
     <aside className="workflow" aria-label="Workflow" data-tour="workflow">
       {reviewed && <StageReview stage={reviewed} onClose={() => setReview(null)} />}
       {cs.status === 'closed' && (
         <div className="closed-card" data-tour="closed-card">
-=======
-    <aside className="workflow" aria-label="Workflow">
-      {reviewed && <StageReview stage={reviewed} onClose={() => setReview(null)} />}
-      {cs.status === 'closed' && (
-        <div className="closed-card">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <p className="meta">Ticket closed {stamp(cs.closedAt)} UTC</p>
           <p className="score"><span className="score-n">{cs.report.score}</span><span className="score-of">/ 100</span></p>
           <p className="band">{cs.report.band}</p>
@@ -388,11 +352,7 @@ export default function Workflow({ cs, onCase, review, setReview, ctx }) {
       )}
       {st && (
         <>
-<<<<<<< HEAD
           <header className="wf-head" data-tour="wf-head">
-=======
-          <header className="wf-head">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
             <p className="meta">{st.tier === 'L1' ? 'Tier 1 analyst' : st.tier === 'L2' ? 'Tier 2 analyst' : 'Tier 3 incident responder'}</p>
             <h2>{st.kind === 'monitor' ? 'Monitor the queue' : st.label}</h2>
             {st.intro && <p className="wf-intro">{st.intro}</p>}

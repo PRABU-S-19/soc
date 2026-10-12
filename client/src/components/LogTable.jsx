@@ -11,80 +11,103 @@ function body(raw) {
 function Row({ ev, ctx, fresh }) {
   const [open, setOpen] = useState(false);
   const pinned = ctx.pinned.has(ev.id);
+
   return (
     <>
-<<<<<<< HEAD
-      <tr className={`log-row${open ? ' is-open' : ''}${pinned ? ' is-pinned' : ''}${fresh ? ' is-fresh' : ''}`} data-tour="log-row" data-eid={ev.id} data-source={ev.source} data-event={ev.fields.event_id ?? ''}>
+      <tr
+        className={`log-row${open ? ' is-open' : ''}${pinned ? ' is-pinned' : ''}${fresh ? ' is-fresh' : ''}`}
+        data-tour="log-row"
+        data-eid={ev.id}
+        data-source={ev.source}
+        data-event={ev.fields.event_id ?? ''}
+      >
         <td className="c-time">
-          <button type="button" className="row-toggle" data-tour="row-toggle" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Collapse' : 'Show parsed fields'}>
-=======
-      <tr className={`log-row${open ? ' is-open' : ''}${pinned ? ' is-pinned' : ''}${fresh ? ' is-fresh' : ''}`}>
-        <td className="c-time">
-          <button type="button" className="row-toggle" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Collapse' : 'Show parsed fields'}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
-            <span className="caret" aria-hidden="true">{open ? '▾' : '▸'}</span>
+          <button
+            type="button"
+            className="row-toggle"
+            data-tour="row-toggle"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            title={open ? 'Collapse' : 'Show parsed fields'}
+          >
+            <span className="caret" aria-hidden="true">
+              {open ? '▾' : '▸'}
+            </span>
             {clock(ev.ts)}
           </button>
         </td>
         <td className="c-src"><SourceTag source={ev.source} /></td>
         <td className="c-host">{ev.host}</td>
-        <td className="c-raw" onClick={() => setOpen(!open)}><div className={open ? 'raw raw-full' : 'raw'}><KvLine text={body(ev.raw)} /></div></td>
+        <td className="c-raw" onClick={() => setOpen(!open)}>
+          <div className={open ? 'raw raw-full' : 'raw'}>
+            <KvLine text={body(ev.raw)} />
+          </div>
+        </td>
         <td className="c-act">
           {ctx.canPin && (
-<<<<<<< HEAD
-            <button type="button" className={`btn btn-xs${pinned ? ' btn-on' : ''}`} data-tour="pin" onClick={() => ctx.onPin(ev, pinned)} title={pinned ? 'Remove from evidence' : 'Pin as evidence'}>
-=======
-            <button type="button" className={`btn btn-xs${pinned ? ' btn-on' : ''}`} onClick={() => ctx.onPin(ev, pinned)} title={pinned ? 'Remove from evidence' : 'Pin as evidence'}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
+            <button
+              type="button"
+              className={`btn btn-xs${pinned ? ' btn-on' : ''}`}
+              data-tour="pin"
+              onClick={() => ctx.onPin(ev, pinned)}
+              title={pinned ? 'Remove from evidence' : 'Pin as evidence'}
+            >
               {pinned ? 'Pinned' : 'Pin'}
             </button>
           )}
         </td>
       </tr>
+
       {open && (
-<<<<<<< HEAD
         <tr className="log-detail" data-tour="log-detail" data-eid={ev.id}>
           <td colSpan={5}>
             <div className="raw-line" data-tour="raw-line">{ev.raw}</div>
             <dl className="fields" data-tour="fields">
-=======
-        <tr className="log-detail">
-          <td colSpan={5}>
-            <div className="raw-line">{ev.raw}</div>
-            <dl className="fields">
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
-              {Object.entries(ev.fields).filter(([k]) => !HIDE.has(k)).map(([k, v]) => {
-                const kind = indicatorKind(k, v);
-                const val = String(v);
-                const lookup = kind === 'domain' && val.includes('@') ? val.split('@')[1] : val;
-                const enc = k === 'command_line' && / -(e|enc|encodedcommand) /i.test(val) ? val.split(/ -(?:e|enc|encodedcommand) /i)[1]?.split(' ')[0] : null;
-                return (
-<<<<<<< HEAD
-                  <div className="field" key={k} data-tour="field" data-field={k}>
-=======
-                  <div className="field" key={k}>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
-                    <dt>{k}</dt>
-                    <dd>
-                      <span className="fv">{val}</span>
-                      <span className="field-actions">
-                        <button type="button" className="link" onClick={() => ctx.onFilter(k, val, false)}>Filter</button>
-                        <button type="button" className="link" onClick={() => ctx.onFilter(k, val, true)}>Exclude</button>
-                        {kind && ctx.onLookup && <button type="button" className="link" onClick={() => ctx.onLookup('reputation', lookup)}>Look up</button>}
-                        {kind && ctx.onIoc && <button type="button" className="link" onClick={() => ctx.onIoc(lookup)}>Add indicator</button>}
-                        {enc && ctx.onLookup && <button type="button" className="link" onClick={() => ctx.onLookup('decode', enc)}>Decode</button>}
-                      </span>
-                    </dd>
-                  </div>
-                );
-              })}
+              {Object.entries(ev.fields)
+                .filter(([k]) => !HIDE.has(k))
+                .map(([k, v]) => {
+                  const kind = indicatorKind(k, v);
+                  const val = String(v);
+                  const lookup = kind === 'domain' && val.includes('@')
+                    ? val.split('@')[1]
+                    : val;
+                  const enc = k === 'command_line' &&
+                    / -(e|enc|encodedcommand) /i.test(val)
+                    ? val.split(/ -(?:e|enc|encodedcommand) /i)[1]?.split(' ')[0]
+                    : null;
+
+                  return (
+                    <div className="field" key={k} data-tour="field" data-field={k}>
+                      <dt>{k}</dt>
+                      <dd>
+                        <span className="fv">{val}</span>
+                        <span className="field-actions">
+                          <button type="button" className="link" onClick={() => ctx.onFilter(k, val, false)}>Filter</button>
+                          <button type="button" className="link" onClick={() => ctx.onFilter(k, val, true)}>Exclude</button>
+                          {kind && ctx.onLookup && (
+                            <button type="button" className="link" onClick={() => ctx.onLookup('reputation', lookup)}>Look up</button>
+                          )}
+                          {kind && ctx.onIoc && (
+                            <button type="button" className="link" onClick={() => ctx.onIoc(lookup)}>Add indicator</button>
+                          )}
+                          {enc && ctx.onLookup && (
+                            <button type="button" className="link" onClick={() => ctx.onLookup('decode', enc)}>Decode</button>
+                          )}
+                        </span>
+                      </dd>
+                    </div>
+                  );
+                })}
             </dl>
             <div className="detail-actions">
-<<<<<<< HEAD
-              <button type="button" className="link" data-tour="context-link" onClick={() => ctx.onContext(ev)}>Show this host ±2 minutes</button>
-=======
-              <button type="button" className="link" onClick={() => ctx.onContext(ev)}>Show this host ±2 minutes</button>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
+              <button
+                type="button"
+                className="link"
+                data-tour="context-link"
+                onClick={() => ctx.onContext(ev)}
+              >
+                Show this host ±2 minutes
+              </button>
             </div>
           </td>
         </tr>
@@ -95,15 +118,9 @@ function Row({ ev, ctx, fresh }) {
 
 export default function LogTable({ events, ctx, freshAfter }) {
   return (
-<<<<<<< HEAD
     <table className="logs" data-tour="logs">
       <thead>
         <tr data-tour="logs-head">
-=======
-    <table className="logs">
-      <thead>
-        <tr>
->>>>>>> 7b1da5500af4fcdd69074c5605004dbb88762a2f
           <th className="c-time">Time (UTC)</th>
           <th className="c-src">Source</th>
           <th className="c-host">Host</th>
@@ -112,7 +129,14 @@ export default function LogTable({ events, ctx, freshAfter }) {
         </tr>
       </thead>
       <tbody>
-        {events.map((ev) => <Row key={ev.id} ev={ev} ctx={ctx} fresh={freshAfter !== undefined && ev.ts > freshAfter} />)}
+        {events.map((ev) => (
+          <Row
+            key={ev.id}
+            ev={ev}
+            ctx={ctx}
+            fresh={freshAfter !== undefined && ev.ts > freshAfter}
+          />
+        ))}
       </tbody>
     </table>
   );
