@@ -31,6 +31,11 @@ export default function Console({ open, startTour, openDemo }) {
     <div className="page">
       <header className="home-head">
         <div>
+          <p className="brand" aria-label="ThreatReady, by Aerovant Technologies">
+            <img src="/aerovant-logo-light.png" alt="Aerovant Technologies" height="30" />
+            <span className="brand-sep" aria-hidden="true" />
+            <span className="brand-product">ThreatReady</span>
+          </p>
           <h1>SOC simulation</h1>
           <p className="lead">Work a ticket the way a SOC does: watch the queue, triage at Tier 1, hand off to Tier 2, investigate and validate, respond as Tier 3, close. Logs are generated live and every decision is checked against the evidence.</p>
         </div>
@@ -112,6 +117,8 @@ export default function Console({ open, startTour, openDemo }) {
           </div>
         )}
       </section>
+
+      <footer className="brand-foot">© {new Date().getFullYear()} Aerovant Technologies · ThreatReady</footer>
     </div>
   );
 }
