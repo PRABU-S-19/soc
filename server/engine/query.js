@@ -61,9 +61,11 @@ export function parseQuery(q) {
   return terms;
 }
 
+// Level attempts match against the renamed view of each event (_lca/_fa),
+// so analysts search with the names they can see.
 function test(term, ev) {
-  if (term.kind === 'text') return ev._lc.includes(term.text);
-  const raw = ev.fields[term.field];
+  if (term.kind === 'text') return (ev._lca ?? ev._lc).includes(term.text);
+  const raw = (ev._fa ?? ev.fields)[term.field];
   if (raw === undefined) return false;
   if (term.kind === 'cmp') {
     const n = Number(raw);

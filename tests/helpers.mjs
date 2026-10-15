@@ -11,10 +11,17 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'soc-sim-test-'));
 process.env.SOC_SIM_DATA = path.join(dir, 'cases.json');
 process.env.SOC_SIM_NO_LISTEN = '1';
 process.env.SOC_SIM_FAST = '1';
+process.env.SOC_SIM_TEST = '1';
+process.env.DEV_USER = 'test.default';
+process.env.TR_SIM_SECRET = 'test-secret-for-tokens';
 
 const { app } = await import('../server/index.js');
 export const engine = await import('../server/engine/cases.js');
-export const { getScenario } = await import('../server/scenarios/index.js');
+const registry = await import('../server/scenarios/index.js');
+export const repo = (await import('../server/repo.js')).repo;
+// v1 tests name the original modules; in v2 they are F3 and E1.
+const LEGACY = { 's01-beacon': 'E1', 's02-authfail': 'F3' };
+export const getScenario = (id) => registry.getScenario(LEGACY[id] || id);
 export const { LogStream } = await import('../server/engine/logstream.js');
 
 let server;
@@ -32,17 +39,44 @@ export const seen = [];
 let recording = true;
 export const record = (on) => { recording = on; };
 
-export async function api(method, url, body) {
+// Which test user owns which case (v1 tests used one analyst name per case).
+const owner = new Map();
+export const registerOwner = (caseId, uid) => owner.set(caseId, uid);
+export function grantLevels(uid, levels = ['foundations', 'intermediate']) {
+  for (const level of levels) {
+    if (repo.listAwards(uid).some((b) => b.level === level)) continue;
+    repo.addAward({ badgeId: `bdg_T${uid}${level}`, userId: uid, level, earnedAt: new Date().toISOString(), average: 80, passedCount: 10, internal: true });
+  }
+}
+
+export async function api(method, url, body, opts = {}) {
+  // v1 route: POST /api/cases with an analyst name starts a canonical
+  // (unrenamed) attempt for that analyst, as a separate user.
+  if (method === 'POST' && url === '/api/cases' && body && LEGACY[body.scenarioId] && !body.kind) {
+    const uid = `t.${body.analyst || 'analyst'}`;
+    grantLevels(uid);
+    const r = await api('POST', '/api/attempts', { scenarioId: LEGACY[body.scenarioId], canonical: true }, { user: uid });
+    if (r.status !== 201) return r;
+    owner.set(r.body.caseId, uid);
+    const c = await api('GET', `/api/cases/${r.body.caseId}`);
+    return { status: 201, body: c.body };
+  }
+  let user = opts.user;
+  if (!user) { const m = url.match(/\/api\/cases\/([a-z0-9]+)/); if (m && owner.has(m[1])) user = owner.get(m[1]); }
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  if (user) headers['x-test-user'] = user;
+  if (opts.cookie) headers.cookie = opts.cookie;
   const res = await fetch(base + url, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); } catch { json = text; }
   if (recording) seen.push({ url: `${method} ${url}`, json });
-  return { status: res.status, body: json };
+  return { status: res.status, body: json, headers: res.headers };
 }
 
 const FORBIDDEN_KEYS = new Set(['key', 'secret', '_tags', '_lc', 'explain', 'accept', 'support', 'hint', 'objectives', 'evaluation', 'truth', 'groups']);
@@ -81,7 +115,9 @@ export async function solveStage(caseId, scenario, stageId) {
     if (!engine.getCase(caseId).pins.some((p) => p.eventId === ev.id)) await api('POST', `/api/cases/${caseId}/pins`, { eventId: ev.id, note: 'auto' });
     return ev.id;
   };
-  for (const [tool, input] of scenario._test?.tools?.[stageId] || []) await api('POST', `/api/cases/${caseId}/tools/${tool}`, { input });
+  // Renamed attempts: the solver types what the analyst would see.
+  const alias = engine.aliasFor(c);
+  for (const [tool, input] of scenario._test?.tools?.[stageId] || []) await api('POST', `/api/cases/${caseId}/tools/${tool}`, { input: alias.out(input) });
   const values = {};
   const links = {};
   for (const f of def.fields) {
@@ -115,5 +151,5 @@ export async function solveStage(caseId, scenario, stageId) {
     }
     if (f.linkable) links[f.id] = [await pin(byTag(k.support))];
   }
-  return { values, links };
+  return { values: alias.outDeep(values), links };
 }

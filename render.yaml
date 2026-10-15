@@ -13,5 +13,12 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NODE_ENV
+        value: production
+      # Signs the session cookie. Render generates a random value. Optional:
+      # without it the server makes one at start-up and sessions end on restart.
+      - key: SIM_SESSION_SECRET
+        generateValue: true
       # PORT is set by Render automatically; do not add it.
-      # SOC_SIM_DATA is optional (path of the case store file).
+      # Optional: SOC_SIM_DATA, DAILY_WIPE, and (only to accept ThreatReady
+      # links) TR_SIM_SECRET, TR_HOME_URL.

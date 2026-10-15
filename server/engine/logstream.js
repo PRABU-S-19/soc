@@ -11,7 +11,7 @@ import { rng } from './rng.js';
 const MAX_LIVE_SECONDS = 6 * 3600;
 
 export class LogStream {
-  constructor(c, scenario) {
+  constructor(c, scenario, alias = null) {
     this.c = c;
     this.scenario = scenario;
     this.t0 = c.t0;
@@ -19,8 +19,21 @@ export class LogStream {
     this.index = new Map();
     this.seq = 0;
     this.injected = 0;
+    // Level attempts: searches and sweeps match what the analyst sees.
+    this.alias = alias && alias.pairs?.length ? alias : null;
 
-    const built = scenario.build({ t0: c.t0, seed: c.seed });
+    const variant = c.variant && !c.variant.canonical ? c.variant : null;
+    const built = scenario.build({ t0: c.t0, seed: c.seed, variant, level: c.level });
+    // Uniform timing stretch for modules that declare it (no periodic
+    // events depend on their offsets). Never earlier than the history window.
+    if (variant && scenario.jitter?.timing && scenario.scaleTiming) {
+      const r = rng(c.seed, 'timing');
+      let f = 1 + (r.f() * 2 - 1) * scenario.jitter.timing;
+      const earliest = Math.min(0, ...built.events.map((e) => e.ts - c.t0));
+      if (earliest < 0) f = Math.min(f, ((scenario.historySeconds - 5) * 1000) / -earliest);
+      for (const ev of built.events) ev.ts = Math.round(c.t0 + (ev.ts - c.t0) * f);
+    }
+    this.noiseOpts = { sources: scenario.catalog?.sources || [], heavy: c.level === 'expert' && !c.variant?.canonical };
     this.periodic = built.periodic || [];
     this.sched = new Map();
     for (const ev of built.events) {
@@ -39,6 +52,12 @@ export class LogStream {
   insert(ev) {
     ev.seq = ++this.seq;
     ev._lc = ev.raw.toLowerCase();
+    if (this.alias) {
+      ev._lca = this.alias.out(ev.raw).toLowerCase();
+      const fa = {};
+      for (const [k, v] of Object.entries(ev.fields)) fa[k] = typeof v === 'string' ? this.alias.out(v) : v;
+      ev._fa = fa;
+    }
     const a = this.events;
     let i = a.length;
     while (i > 0 && a[i - 1].ts > ev.ts) i--;
@@ -58,7 +77,7 @@ export class LogStream {
       }
       return false;
     };
-    const evs = noiseSlot(this.c.seed, s, this.t0).filter((e) => !isOffline(e));
+    const evs = noiseSlot(this.c.seed, s, this.t0, this.noiseOpts).filter((e) => !isOffline(e));
     const sched = this.sched.get(s);
     if (sched) evs.push(...sched);
     for (const p of this.periodic) {
@@ -126,7 +145,8 @@ export class LogStream {
   }
 }
 
-// Strip everything the analyst must not see.
+// Strip everything the analyst must not see. (Level attempts are renamed
+// on the way out by the route layer.)
 export function publicEvent(e) {
   return { id: e.id, ts: e.ts, source: e.source, host: e.host, raw: e.raw, fields: e.fields };
 }

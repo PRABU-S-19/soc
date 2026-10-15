@@ -20,8 +20,23 @@ export const ACTIONS = [
   { type: 'remove_artifacts', phase: 'Eradication', label: 'Remove malicious artefacts', desc: 'EDR remediation: kill processes, delete files, remove persistence.', target: 'host' },
   { type: 'reimage_host', phase: 'Eradication', label: 'Reimage / rebuild host', desc: 'Wipe and rebuild from the gold image.', target: 'host' },
   { type: 'release_host', phase: 'Recovery', label: 'Release from isolation', desc: 'Return the host to the production network.', target: 'host' },
+  { type: 'revoke_sessions', phase: 'Containment', label: 'Revoke sessions and tokens', desc: 'Sign the account out everywhere and invalidate refresh tokens. The password is unchanged.', target: 'account' },
+  { type: 'end_session', phase: 'Containment', label: 'Terminate remote session', desc: 'Log off every interactive and remote session on a host.', target: 'host' },
+  { type: 'remove_mail_rule', phase: 'Containment', label: 'Remove mailbox rule', desc: 'Delete an inbox rule or forwarding setting by name.', target: 'text', placeholder: 'rule name' },
+  { type: 'revoke_consent', phase: 'Containment', label: 'Revoke application consent', desc: 'Remove an application\'s granted permissions for every user.', target: 'text', placeholder: 'application name or app id' },
+  { type: 'block_app', phase: 'Containment', label: 'Block application tenant-wide', desc: 'Prevent any user from signing in to or consenting to the application.', target: 'text', placeholder: 'application name or app id' },
+  { type: 'deactivate_key', phase: 'Containment', label: 'Deactivate cloud access key', desc: 'Set an AWS access key to inactive.', target: 'text', placeholder: 'access key id' },
+  { type: 'waf_rule', phase: 'Containment', label: 'Add WAF deny rule', desc: 'Deny requests matching a path or source at the web application firewall.', target: 'text', placeholder: 'path pattern or source address' },
+  { type: 'delete_cloud_user', phase: 'Eradication', label: 'Delete cloud identity', desc: 'Delete an IAM user (or other cloud identity) and its keys.', target: 'text', placeholder: 'user name' },
+  { type: 'rollback_software', phase: 'Eradication', label: 'Stop or roll back software', desc: 'Stop a software agent or roll it back to the previous version across the fleet.', target: 'text', placeholder: 'product and version' },
+  { type: 'restore_item', phase: 'Evidence', label: 'Recover deleted item', desc: 'Restore a deleted mail item or file into the evidence locker.', target: 'text', placeholder: 'item subject or path' },
   { type: 'notify', phase: 'Communication', label: 'Notify stakeholder', desc: 'Send an incident notification through the IR communication plan.', target: 'stakeholder' },
 ];
+// Action types whose use on something outside the incident scope disrupts
+// the business (collateral; Build specification, section 7.1).
+export const DISRUPTIVE = new Set(['isolate_host', 'reimage_host', 'disable_account', 'reset_credentials', 'block_domain', 'block_ip', 'block_hash', 'block_sender', 'purge_email',
+  'revoke_sessions', 'end_session', 'remove_mail_rule', 'revoke_consent', 'block_app', 'deactivate_key', 'waf_rule', 'delete_cloud_user', 'rollback_software']);
+const TEXT_TYPES = new Set(['remove_mail_rule', 'revoke_consent', 'block_app', 'deactivate_key', 'waf_rule', 'delete_cloud_user', 'rollback_software', 'restore_item']);
 
 export const STAKEHOLDERS = [
   { id: 'ir_lead', label: 'CISO / incident response lead' },
@@ -34,6 +49,7 @@ export const STAKEHOLDERS = [
   { id: 'regulator', label: 'Data protection regulator' },
   { id: 'customers', label: 'Customers / external partners' },
   { id: 'press', label: 'Corporate communications / press' },
+  { id: 'vendor', label: 'Software vendor / supplier' },
 ];
 
 const ACTION_BY_TYPE = new Map(ACTIONS.map((a) => [a.type, a]));
@@ -55,8 +71,9 @@ export function deriveState(actions, at = Infinity) {
   const st = {
     isolated: new Set(), everIsolated: new Map(), released: new Map(),
     blockedDomains: new Map(), blockedIps: new Map(), blockedHashes: new Map(), blockedSenders: new Map(),
-    disabled: new Map(), reset: new Map(), purges: [],
+    disabled: new Map(), reset: new Map(), resetCount: new Map(), purges: [],
     evidence: new Map(), cleaned: new Map(), reimaged: new Map(), notified: new Map(),
+    revoked: new Map(), ended: new Map(), done: new Map(),
     actions: [],
   };
   for (const a of actions) {
@@ -72,7 +89,9 @@ export function deriveState(actions, at = Infinity) {
       case 'block_hash': first(st.blockedHashes); break;
       case 'block_sender': first(st.blockedSenders); break;
       case 'disable_account': first(st.disabled); break;
-      case 'reset_credentials': first(st.reset); break;
+      case 'reset_credentials': first(st.reset); st.resetCount.set(t, (st.resetCount.get(t) || 0) + 1); break;
+      case 'revoke_sessions': first(st.revoked); break;
+      case 'end_session': first(st.ended); break;
       case 'purge_email': st.purges.push(a); break;
       case 'acquire_evidence': first(st.evidence); break;
       case 'remove_artifacts': first(st.cleaned); break;
@@ -80,7 +99,12 @@ export function deriveState(actions, at = Infinity) {
       case 'notify': first(st.notified); break;
       default: break;
     }
+    if (TEXT_TYPES.has(a.type)) {
+      if (!st.done.has(a.type)) st.done.set(a.type, new Map());
+      if (!st.done.get(a.type).has(t)) st.done.get(a.type).set(t, a.ts);
+    }
   }
+  st.did = (type, target) => !!st.done.get(type)?.has(String(target).toLowerCase());
   st.offline = (host) => st.isolated.has(String(host).toUpperCase());
   st.eradicated = (host) => st.cleaned.has(String(host).toUpperCase()) || st.reimaged.has(String(host).toUpperCase());
   st.domainBlocked = (d) => st.blockedDomains.has(String(d).toLowerCase());
@@ -92,12 +116,12 @@ function normaliseTarget(def, raw) {
   const v = String(raw ?? '').trim();
   if (!v) throw new HttpError(400, 'Choose a target for this action.');
   switch (def.type) {
-    case 'isolate_host': case 'acquire_evidence': case 'remove_artifacts': case 'reimage_host': case 'release_host': {
+    case 'isolate_host': case 'acquire_evidence': case 'remove_artifacts': case 'reimage_host': case 'release_host': case 'end_session': {
       const h = hostNamed(v);
       if (!h) throw new HttpError(400, `Unknown host "${v}".`);
       return h.name;
     }
-    case 'reset_credentials': case 'disable_account': {
+    case 'reset_credentials': case 'disable_account': case 'revoke_sessions': {
       const a = account(v);
       if (!a) throw new HttpError(400, `Unknown account "${v}".`);
       return a.sam;
@@ -122,6 +146,9 @@ function normaliseTarget(def, raw) {
     }
     case 'purge_email':
       return v.toLowerCase();
+    case 'remove_mail_rule': case 'revoke_consent': case 'block_app': case 'deactivate_key': case 'waf_rule':
+    case 'delete_cloud_user': case 'rollback_software': case 'restore_item':
+      return v.toLowerCase().slice(0, 200);
     case 'notify':
       if (!STAKEHOLDERS.some((s) => s.id === v)) throw new HttpError(400, 'Unknown stakeholder.');
       return v;
@@ -256,6 +283,29 @@ export function executeAction(c, stream, scenario, req, now) {
       if (host.kind === 'server') { details.push('Server role and data restored from last verified backup.'); impact = `${host.role} was offline during the rebuild.`; }
       logs.push(E.audit(now, 'DEPLOY01', 'imaging', [['action', 'reimage'], ['target_host', target], ['image', host.kind === 'server' ? 'srv2019-gold-2026.09' : 'w11-23h2-gold-2026.09'], ['status', 'completed'], ['operator', by], ['ticket', c.ticket]], target));
       break;
+    case 'revoke_sessions':
+      if (state.revoked.has(target)) { ok = false; summary = `Sessions for ${target} were already revoked.`; break; }
+      summary = `All sessions and refresh tokens for ${target} revoked. The user must sign in again.`;
+      logs.push(E.audit(now, 'ENTRA', 'idp', [['action', 'revoke_sessions'], ['target_user', target], ['operator', by], ['ticket', c.ticket]]));
+      break;
+    case 'end_session':
+      if (state.ended.has(target)) { ok = false; summary = `Sessions on ${target} were already terminated.`; break; }
+      summary = `All interactive and remote sessions on ${target} logged off.`;
+      logs.push(E.audit(now, 'EDR-CONSOLE', 'edr', [['action', 'logoff_sessions'], ['target_host', target], ['operator', by], ['ticket', c.ticket]], target));
+      if (host.kind === 'server') impact = `Users working on ${target} were disconnected.`;
+      break;
+    case 'remove_mail_rule': case 'revoke_consent': case 'block_app': case 'deactivate_key': case 'waf_rule':
+    case 'delete_cloud_user': case 'rollback_software': case 'restore_item': {
+      if (state.did(def.type, target)) { ok = false; summary = 'That action has already been applied to this target.'; break; }
+      const known = (sec.textTargets?.[def.type] || []).map((x) => String(x).toLowerCase());
+      const okTarget = !known.length || known.includes(target) || (sec.textAllowAny || []).includes(def.type);
+      summary = okTarget ? `${def.label}: ${target} done.` : `${def.label}: ${target} applied, but nothing matching that name exists in this environment.`;
+      const reporter = ['deactivate_key', 'delete_cloud_user'].includes(def.type) ? 'aws' : def.type === 'waf_rule' ? 'WAF01' : def.type === 'rollback_software' ? 'EDR-CONSOLE' : def.type === 'restore_item' ? 'M365' : 'ENTRA';
+      logs.push(E.audit(now, reporter, 'console', [['action', def.type], ['target', target], ['operator', by], ['ticket', c.ticket]]));
+      const imp = sec.impacts?.[def.type]?.[target];
+      if (imp) impact = imp;
+      break;
+    }
     case 'notify': {
       if (state.notified.has(target)) { ok = false; summary = 'That stakeholder has already been notified.'; break; }
       const s = STAKEHOLDERS.find((x) => x.id === target);
@@ -306,9 +356,11 @@ export function publicResponse(c) {
       ...[...st.blockedSenders.keys()].map((v) => ({ kind: 'Sender', value: v })),
     ],
     accounts: [
-      ...[...st.reset.keys()].map((v) => ({ account: v, status: 'Credentials reset' })),
+      ...[...st.reset.keys()].map((v) => ({ account: v, status: st.resetCount.get(v) > 1 ? `Credentials reset (${st.resetCount.get(v)} times)` : 'Credentials reset' })),
       ...[...st.disabled.keys()].map((v) => ({ account: v, status: 'Disabled' })),
+      ...[...st.revoked.keys()].map((v) => ({ account: v, status: 'Sessions revoked' })),
     ],
+    other: [...st.done.entries()].flatMap(([type, m]) => [...m.keys()].map((v) => ({ kind: ACTION_BY_TYPE.get(type).label, value: v }))),
     notified: [...st.notified.keys()].map((id) => STAKEHOLDERS.find((s) => s.id === id)?.label),
   };
 }
@@ -327,41 +379,50 @@ export function evaluateResponse(c, scenario, stream) {
   const scope = sec.scope;
   const inScope = (list, v) => (list || []).map((x) => String(x).toLowerCase()).includes(String(v).toLowerCase());
   const findings = [];
-  const add = (a, points, reason) => findings.push({ actionId: a.id, action: `${a.label}: ${a.targetLabel}`, points, reason });
+  const add = (a, points, reason, collateral = false) => findings.push({ actionId: a.id, action: `${a.label}: ${a.targetLabel}`, points, reason, ...(collateral ? { collateral: true } : {}) });
 
   for (const a of st.actions) {
     const t = a.target;
     const h = hostNamed(t);
     switch (a.type) {
       case 'isolate_host': case 'reimage_host':
-        if (!inScope(scope.hosts, t)) add(a, h.criticality === 'Critical' ? 3 : h.kind === 'server' ? 2 : 1, `No evidence in this case implicates ${t}. ${h.kind === 'server' ? 'The action caused an avoidable service outage.' : 'The user lost their workstation for no reason.'}`);
+        if (!inScope(scope.hosts, t)) add(a, h.criticality === 'Critical' ? 3 : h.kind === 'server' ? 2 : 1, `No evidence in this case implicates ${t}. ${h.kind === 'server' ? 'The action caused an avoidable service outage.' : 'The user lost their workstation for no reason.'}`, true);
         break;
       case 'remove_artifacts': break;
       case 'disable_account': case 'reset_credentials':
-        if (!inScope(scope.accounts, t)) add(a, account(t).type === 'user' ? 1 : 2, `${t} is not implicated by the evidence. Unnecessary credential action disrupts the business and dilutes the response.`);
+        if (!inScope(scope.accounts, t)) add(a, account(t).type === 'user' ? 1 : 2, `${t} is not implicated by the evidence. Unnecessary credential action disrupts the business and dilutes the response.`, true);
+        break;
+      case 'revoke_sessions':
+        if (!inScope(scope.accounts, t)) add(a, 0.5, `${t} is not implicated by the evidence. Signing the user out everywhere interrupted their work.`, true);
+        break;
+      case 'end_session':
+        if (!inScope(scope.sessions || scope.hosts, t)) add(a, 1, `Nothing in this case required ending sessions on ${t}. People working there were disconnected.`, true);
         break;
       case 'block_domain':
-        if (!inScope(scope.domains, t)) add(a, BENIGN_DOMAINS.has(t) ? 2 : 0.5, BENIGN_DOMAINS.has(t) ? `${t} is a legitimate business destination. Blocking it broke normal work.` : `${t} is not an indicator supported by the evidence.`);
+        if (!inScope(scope.domains, t)) add(a, BENIGN_DOMAINS.has(t) ? 2 : 0.5, BENIGN_DOMAINS.has(t) ? `${t} is a legitimate business destination. Blocking it broke normal work.` : `${t} is not an indicator supported by the evidence.`, true);
         break;
       case 'block_ip':
-        if (!inScope(scope.ips, t)) add(a, BENIGN_IPS.has(t) || t.startsWith('10.') ? 2 : 0.5, BENIGN_IPS.has(t) || t.startsWith('10.') ? `${t} carries legitimate traffic.` : `${t} is not an indicator supported by the evidence.`);
+        if (!inScope(scope.ips, t)) add(a, BENIGN_IPS.has(t) || t.startsWith('10.') ? 2 : 0.5, BENIGN_IPS.has(t) || t.startsWith('10.') ? `${t} carries legitimate traffic.` : `${t} is not an indicator supported by the evidence.`, true);
         break;
       case 'block_hash':
-        if (!inScope(scope.hashes, t)) add(a, KNOWN_GOOD_HASHES.has(t) ? 2 : 0.5, KNOWN_GOOD_HASHES.has(t) ? 'The hash belongs to a signed system binary. Blocking it by hash breaks legitimate use.' : 'That hash is not an indicator supported by the evidence.');
+        if (!inScope(scope.hashes, t)) add(a, KNOWN_GOOD_HASHES.has(t) ? 2 : 0.5, KNOWN_GOOD_HASHES.has(t) ? 'The hash belongs to a signed system binary. Blocking it by hash breaks legitimate use.' : 'That hash is not an indicator supported by the evidence.', true);
         break;
       case 'block_sender':
-        if (!inScope(scope.senders, t)) add(a, 1, `${t} is not the malicious sender. Blocking it stops legitimate mail.`);
+        if (!inScope(scope.senders, t)) add(a, 1, `${t} is not the malicious sender. Blocking it stops legitimate mail.`, true);
         break;
       case 'purge_email': {
         const ids = new Set(a.matched || []);
         const bad = [...ids].filter((id) => !(stream.get(id)?._tags || []).some((tag) => (sec.purgeTags || []).includes(tag)));
-        if (bad.length) add(a, Math.min(2, 0.5 * bad.length), `The purge criteria also removed ${bad.length} legitimate message${bad.length === 1 ? '' : 's'}.`);
+        if (bad.length) add(a, Math.min(2, 0.5 * bad.length), `The purge criteria also removed ${bad.length} legitimate message${bad.length === 1 ? '' : 's'}.`, true);
         break;
       }
       case 'notify':
-        if ((sec.notify.premature || []).includes(t)) add(a, 1, `${a.targetLabel}: ${sec.notify.prematureReason}`);
+        if ((sec.notify?.premature || []).includes(t)) add(a, 1, `${a.targetLabel}: ${sec.notify.prematureReason}`);
         break;
-      default: break;
+      case 'restore_item': break;
+      default:
+        if (DISRUPTIVE.has(a.type) && !inScope(scope[a.type], t)) add(a, 1, (sec.collateralReasons?.[a.type]?.[t]) || `${a.label} on ${t} is not supported by the evidence in this case.`, true);
+        break;
     }
   }
 
@@ -383,5 +444,5 @@ export function evaluateResponse(c, scenario, stream) {
 
   const max = objectives.reduce((s, o) => s + o.points, 0);
   const earned = objectives.reduce((s, o) => s + o.earned, 0);
-  return { objectives, findings, earned: +earned.toFixed(2), max, penalty: +findings.reduce((s, f) => s + f.points, 0).toFixed(2) };
+  return { objectives, findings, earned: +earned.toFixed(2), max, penalty: +findings.reduce((s, f) => s + f.points, 0).toFixed(2), collateral: findings.filter((f) => f.collateral).length };
 }

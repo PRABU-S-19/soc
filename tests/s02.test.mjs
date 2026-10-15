@@ -55,7 +55,8 @@ test('unnecessary escalation goes through L2 review and costs credit', async () 
   s.values.severity = 'high';
   s.values.category = 'spray';
   s.values.decision = 'escalate';
-  let r = await api('POST', `/api/cases/${id}/submit`, s);
+  // v2: Foundations allows three rounds; finalise the wrong decision now.
+  let r = await api('POST', `/api/cases/${id}/submit`, { ...s, finalize: true });
   assert.equal(r.body.case.stage, 'l2_review');
   assert.equal(r.body.case.tier, 'L2');
   assert.equal(r.body.case.stages.find((x) => x.id === 'l1_triage').result, 'Escalated');

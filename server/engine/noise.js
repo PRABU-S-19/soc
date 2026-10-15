@@ -8,7 +8,7 @@
 
 import { rng, fakeSha256 } from './rng.js';
 import { E } from './format.js';
-import { USERS, SERVERS, WEB, UA, BINARIES as B, ORG, dom, stablePid, hostNamed } from './env.js';
+import { USERS, SERVERS, WEB, UA, BINARIES as B, ORG, dom, stablePid, hostNamed, VPN_POOL, AWS, TENANT } from './env.js';
 
 const DC = hostNamed('DC01');
 const FS = hostNamed('FS01');
@@ -277,13 +277,80 @@ const GEN = {
 
 const KINDS = [[34, 'web'], [20, 'dns'], [16, 'auth'], [12, 'proc'], [13, 'fw'], [5, 'mail']];
 
-export function noiseSlot(seed, slot, t0) {
+// ---------------------------------------------------------------------------
+// v2 sources. Generated only for scenarios that list the source, from a
+// separate random stream, so the noise of existing scenarios is unchanged.
+// ---------------------------------------------------------------------------
+export const OFFICE_EGRESS = '203.0.113.10';
+const HOME_NETS = ['198.51.100', '203.0.113', '192.0.2'];
+const homeIp = (u) => `${HOME_NETS[u.sam.length % 3]}.${20 + (u.sam.charCodeAt(0) % 200)}`;
+const uaBrowser = UA.edge;
+const EXTRA = {
+  vpn(r, ts) {
+    const u = r.pick(USERS);
+    const k = r.weighted([[50, 'connect'], [35, 'disconnect'], [10, 'mfa_push'], [5, 'auth_fail']]);
+    const base = { user: u.sam, src_ip: homeIp(u), src_country: 'GB', client: 'SecureLink 6.2.1', device_id: `dev-${u.sam.replace('.', '')}` };
+    if (k === 'connect') return [E.vpn(ts, { ...base, event: 'connect', assigned_ip: `${VPN_POOL}.${r.int(10, 240)}`, pop: 'LON' })];
+    if (k === 'disconnect') return [E.vpn(ts, { ...base, event: 'disconnect', duration_s: r.int(300, 30000), bytes_in: r.int(1e6, 4e8), bytes_out: r.int(2e5, 4e7) })];
+    if (k === 'mfa_push') return [E.vpn(ts, { ...base, event: 'mfa_push', reason: 'approved' })];
+    return [E.vpn(ts, { ...base, event: 'auth_fail', reason: 'bad password' })];
+  },
+  idp(r, ts) {
+    const u = r.pick(USERS);
+    if (r.chance(0.05)) return [E.idpAudit(ts, { operation: 'Update user', actor: 'e.morales', target: u.sam, target_type: 'User', result: 'success' })];
+    const fail = r.chance(0.06);
+    return [E.signin(ts, {
+      user: `${u.sam}@${ORG.mailDomain}`, app: r.pick(TENANT.apps.slice(0, 3)), result: fail ? 'failure' : 'success', error_code: fail ? 50126 : undefined,
+      src_ip: OFFICE_EGRESS, country: 'GB', city: 'London', user_agent: uaBrowser, device_id: `dev-${u.sam.replace('.', '')}`,
+      mfa: fail ? 'none' : r.pick(['previously satisfied', 'push']), session_id: r.hex(12),
+    })];
+  },
+  winsys(r, ts) {
+    const h = r.pick(SERVERS.filter((x) => x.os.startsWith('Windows')));
+    const svc = r.pick(['wuauserv', 'BITS', 'WinRM', 'Spooler', 'TrustedInstaller']);
+    return [E.winsys(ts, h.name, 7036, `The ${svc} service entered the ${r.chance(0.5) ? 'running' : 'stopped'} state`, { service_name: svc })];
+  },
+  fileaudit(r, ts) {
+    const u = r.pick(USERS);
+    const share = ['Finance', 'Operations', 'HR'].includes(u.dept) ? u.dept : 'Projects';
+    const doc = r.pick(['Report.xlsx', 'Plan.docx', 'Notes.docx', 'Rates.xlsx', 'Minutes.pdf']);
+    return [E.fileaudit(ts, { user: dom(u.sam), share: `\\FS01\${share}`, path: `D:\Shares\${share}\${u.dept}_${doc}`, access: r.chance(0.8) ? 'ReadData' : 'WriteData', process: B.excel.path, src_ip: u.ip })];
+  },
+  web(r, ts) {
+    const ip = `${r.pick(['192.0.2', '198.51.100', '203.0.113'])}.${r.int(2, 250)}`;
+    if (r.chance(0.06)) return [E.waf(ts, { src_ip: ip, rule_id: r.pick(['920350', '913100']), rule_msg: r.pick(['Host header is a numeric IP address', 'Found User-Agent associated with security scanner']), action: 'log', uri: '/', score: r.int(2, 4) })];
+    const uri = r.pick(['/', '/login', '/track', '/bookings', '/static/app.js', '/api/v1/shipments']);
+    return [E.web(ts, { src_ip: ip, method: uri.startsWith('/api') ? r.pick(['GET', 'POST']) : 'GET', uri, query: uri === '/track' ? `id=${r.int(100000, 999999)}` : undefined, status: r.weighted([[92, 200], [4, 304], [3, 404], [1, 500]]), bytes: uri === '/track' ? r.int(4100, 4400) : r.int(500, 90000), ua: uaBrowser, time_ms: r.int(20, 300) })];
+  },
+  m365(r, ts) {
+    const u = r.pick(USERS);
+    if (r.chance(0.2)) return [E.m365(ts, { operation: 'UserLoggedIn', user: `${u.sam}@${ORG.mailDomain}`, client_ip: OFFICE_EGRESS, client_info: 'Outlook/16.0' })];
+    return [E.m365(ts, { operation: 'MailItemsAccessed', user: `${u.sam}@${ORG.mailDomain}`, client_ip: OFFICE_EGRESS, client_info: 'Outlook/16.0', client_app_id: 'd3590ed6-52b3-4102-aeff-aad2292ab01c', item_count: r.int(1, 12), folder: 'Inbox' })];
+  },
+  aws(r, ts) {
+    const k = r.weighted([[50, 'ci'], [40, 'admin'], [10, 'gd']]);
+    if (k === 'ci') return [E.cloudtrail(ts, { event_name: 'PutObject', event_source: 's3.amazonaws.com', user_arn: `arn:aws:iam::${AWS.account}:user/ci-deploy`, access_key: 'AKIA4QX7CIDEPLOY7Q2M', src_ip: AWS.ciRunner, ua: 'aws-cli/2.17.3', resource: `${AWS.buckets[2]}/assets/app.${r.hex(8)}.js` })];
+    if (k === 'admin') return [E.cloudtrail(ts, { event_name: r.pick(['DescribeInstances', 'ListBuckets', 'GetMetricData']), event_source: r.pick(['ec2.amazonaws.com', 's3.amazonaws.com', 'monitoring.amazonaws.com']), user_type: 'AssumedRole', user_arn: `arn:aws:sts::${AWS.account}:assumed-role/ec2-app-role/i-0${r.hex(16)}`, src_ip: '10.60.1.15', ua: 'aws-sdk-java/2.25' })];
+    return [E.guardduty(ts, { finding_type: 'Recon:EC2/PortProbeUnprotectedPort', severity: 2, resource: `i-0${r.hex(16)}`, src_ip: `${r.pick(['192.0.2', '198.51.100'])}.${r.int(2, 250)}`, count: r.int(1, 20) })];
+  },
+};
+const EXTRA_RATE = { vpn: 0.12, idp: 0.18, winsys: 0.06, fileaudit: 0.15, web: 0.25, m365: 0.15, aws: 0.18 };
+
+export function noiseSlot(seed, slot, t0, opts = {}) {
   const r = rng(seed, 'noise', slot);
   const n = r.weighted([[24, 0], [36, 1], [24, 2], [11, 3], [5, 4]]);
   const out = [];
   for (let i = 0; i < n; i++) {
     const ts = t0 + slot * 1000 + r.int(0, 550);
     out.push(...GEN[r.weighted(KINDS)](r, ts));
+  }
+  const sources = opts.sources || [];
+  const extra = Object.keys(EXTRA).filter((k) => sources.includes(k));
+  if (extra.length || opts.heavy) {
+    const r2 = rng(seed, 'noise2', slot);
+    for (const k of extra) if (r2.chance(EXTRA_RATE[k])) out.push(...EXTRA[k](r2, t0 + slot * 1000 + r2.int(0, 900)));
+    // Expert: a busier day.
+    if (opts.heavy) { const m = r2.weighted([[50, 0], [35, 1], [15, 2]]); for (let i = 0; i < m; i++) out.push(...GEN[r2.weighted(KINDS)](r2, t0 + slot * 1000 + r2.int(0, 900))); }
   }
   return out;
 }

@@ -2,14 +2,13 @@
 // presses Start.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { demoApi } from '../api.js';
-import { ErrorNote, useLocal } from '../components/bits.jsx';
+import { demoApi, session } from '../api.js';
+import { ErrorNote } from '../components/bits.jsx';
 import { demoStore, newNonce } from './DemoPage.jsx';
 
 export default function DemoIntro({ goHome, goDemo, goSummary }) {
   const [info, setInfo] = useState(null);
   const [saved, setSaved] = useState(null);
-  const [name, setName] = useLocal('soc-sim-analyst', '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const nonce = useRef(newNonce());
@@ -24,7 +23,7 @@ export default function DemoIntro({ goHome, goDemo, goSummary }) {
     setBusy(true);
     setErr(null);
     try {
-      const out = await demoApi.start({ analyst: name.trim() || 'learner', nonce: nonce.current });
+      const out = await demoApi.start({ nonce: nonce.current });
       demoStore.set(out.id);
       goDemo(out.id);
     } catch (e) { setErr(e); setBusy(false); }
@@ -51,10 +50,7 @@ export default function DemoIntro({ goHome, goDemo, goSummary }) {
           <h1>{info?.title || 'Newbie Demo Mode'}</h1>
           <p className="lead">{info?.text}</p>
         </div>
-        <label className="analyst">
-          <span>Your name (shown on the demo ticket)</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. a.rivera" maxLength={40} />
-        </label>
+        {session.me && <p className="name-chip"><span className="muted">Demo ticket analyst</span> <strong>{session.me.name}</strong></p>}
       </header>
       <ErrorNote error={err} onDismiss={() => setErr(null)} />
 

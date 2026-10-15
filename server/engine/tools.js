@@ -57,9 +57,11 @@ function reputation(ctx, input) {
 function asset(ctx, input) {
   const v = String(input || '').trim();
   if (!v) throw new HttpError(400, 'Enter a hostname or internal IP.');
+  const extraRec = ctx.scenario.assetRecords?.[v.toLowerCase()] || ctx.scenario.assetRecords?.[v];
+  if (extraRec) return { kind: 'facts', title: v, found: true, facts: extraRec.facts, notes: extraRec.notes || [] };
   const h = hostNamed(v) || hostAt(v);
   if (!h) return { kind: 'facts', title: v, found: false, notes: ['No asset with that hostname or address.'] };
-  const owner = USERS.find((u) => u.sam === h.owner);
+  const owner = ACCOUNTS.find((u) => u.sam === h.owner && u.type === 'user');
   const extra = (ctx.scenario.assetNotes && ctx.scenario.assetNotes[h.name]) || [];
   return {
     kind: 'facts', title: h.name, found: true,
@@ -77,11 +79,12 @@ function user(ctx, input) {
   if (!v) throw new HttpError(400, 'Enter an account name.');
   const a = account(v) || ACCOUNTS.find((x) => x.name.toLowerCase() === v.toLowerCase());
   if (!a) return { kind: 'facts', title: v, found: false, notes: ['No account with that name.'] };
-  const mgr = a.manager ? USERS.find((u) => u.sam === a.manager) : null;
+  const mgr = a.manager ? ACCOUNTS.find((u) => u.sam === a.manager) : null;
   const facts = [['Account', `${ORG.netbios}\\${a.sam}`], ['Type', a.type === 'user' ? 'User account' : a.type === 'service' ? 'Service account' : 'Privileged administrative account'], ['Name', a.name]];
   if (a.type === 'user') facts.push(['Title', a.title], ['Department', a.dept], ['Manager', mgr ? `${mgr.name} (${mgr.sam})` : '-'], ['Primary workstation', `${a.host} (${a.ip})`], ['Local administrator', a.localAdmin ? `Yes, on ${a.host}` : 'No'], ['Email', a.email]);
   else facts.push(['Normal logon sources', (a.usualHosts || []).join(', ') || '-']);
   facts.push(['Groups', a.groups.join(', ')]);
+  if (a.disabled || ctx.scenario.accountState?.[a.sam]) facts.push(['Account status', ctx.scenario.accountState?.[a.sam] || 'Disabled']);
   const extra = (ctx.scenario.accountNotes && ctx.scenario.accountNotes[a.sam]) || [];
   return { kind: 'facts', title: a.sam, found: true, facts, notes: [a.notes, ...extra].filter(Boolean) };
 }
@@ -124,12 +127,13 @@ function decode(ctx, input) {
 }
 
 function sweep(ctx, input) {
-  const needle = String(input || '').trim().toLowerCase();
+  // Matches what the analyst sees (renamed text in level attempts).
+  const needle = String(ctx.visibleInput ?? input ?? '').trim().toLowerCase();
   if (needle.length < 4) throw new HttpError(400, 'Enter at least 4 characters.');
   const rows = new Map();
   const hits = [];
   for (const e of ctx.stream.events) {
-    if (!e._lc.includes(needle)) continue;
+    if (!(e._lca ?? e._lc).includes(needle)) continue;
     hits.push(e);
     const f = e.fields;
     const entity = e.source === 'email' ? `Mailbox ${f.to}` : (f.src_host || e.host);

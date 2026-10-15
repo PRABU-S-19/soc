@@ -1,5 +1,60 @@
 import React, { useState } from 'react';
-import { stamp, duration, Verdict } from './bits.jsx';
+import { api } from '../api.js';
+import { stamp, duration, Verdict, ErrorNote } from './bits.jsx';
+
+// Level attempts: result banner at the top of the review.
+function ResultBanner({ res }) {
+  return (
+    <div className={`result-banner ${res.passed ? 'is-pass' : 'is-fail'}`} role="status">
+      <strong>{res.passed ? 'Passed' : 'Not passed'}: {res.score} (pass mark {res.passMark})</strong>
+      <span>{res.newBest ? 'New best for this scenario' : `Your best remains ${res.best}`}</span>
+    </div>
+  );
+}
+
+function SkillsTested({ skills }) {
+  if (!skills?.length) return null;
+  return (
+    <section className="skills-tested">
+      <h3 className="rep-h">Skills tested</h3>
+      <ul className="skill-list">
+        {skills.map((k) => (
+          <li key={k.id}>
+            <span className="skill-name">{k.label}</span>
+            <span className="rep-bar" aria-hidden="true"><span style={{ width: `${k.score}%` }} className={k.score >= 80 ? 'good' : k.score >= 50 ? 'mid' : 'low'} /></span>
+            <span className="skill-score">{k.score}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function LevelFooter({ cs, go }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const replay = async () => {
+    setBusy(true);
+    try {
+      const out = await api.startAttempt(cs.scenarioId);
+      go(`#/case/${out.caseId}`);
+    } catch (e) {
+      if (e.code === 'attempt_open' && e.body.caseId) go(`#/case/${e.body.caseId}`);
+      else { setErr(e); setBusy(false); }
+    }
+  };
+  return (
+    <footer className="rep-foot">
+      <ErrorNote error={err} onDismiss={() => setErr(null)} />
+      <div className="rep-foot-actions">
+        <button type="button" className="btn" onClick={() => go(`#/level/${cs.level}`)}>Back to level</button>
+        <button type="button" className="btn btn-primary" onClick={replay} disabled={busy}>{busy ? 'Starting…' : 'Replay with a new variant'}</button>
+        <button type="button" className="btn" onClick={() => go('#/report')}>Final analyst report</button>
+      </div>
+      <p className="muted small">ThreatReady SOC Simulation · Aerovant Technologies</p>
+    </footer>
+  );
+}
 
 function Stage({ s }) {
   const [open, setOpen] = useState(s.pct < 100 && !s.skipped);
@@ -47,12 +102,13 @@ function Stage({ s }) {
   );
 }
 
-export default function ReportPanel({ cs }) {
+export default function ReportPanel({ cs, go }) {
   const r = cs.report;
   return (
     <div className="panel">
       <div className="scroll pad report">
         {cs.kind === 'demo' && <p className="note" data-tour="report-note">Guided demo result. You were coached and could retry, so this figure is a learning record, not an assessment or a certification. It is not listed with, and does not affect, normal simulation cases.</p>}
+        {r.result && <ResultBanner res={r.result} />}
         {r.sample && <p className="note" data-tour="report-note">Sample report for the walkthrough. Answers, expected answers and explanations are left out here; your own closed ticket shows them in full.</p>}
         <header className="rep-head" data-tour="report-head">
           <div>
@@ -69,6 +125,8 @@ export default function ReportPanel({ cs }) {
           <a className="btn btn-sm" href={`/api/cases/${cs.id}/export?format=md`}>Download case file (Markdown)</a>
           <a className="btn btn-sm" href={`/api/cases/${cs.id}/export?format=json`}>Download case file (JSON)</a>
         </div>
+
+        {r.result && <SkillsTested skills={r.result.skills} />}
 
         <div data-tour="report-stages">
           <h3 className="rep-h">Scoring by stage</h3>
@@ -89,6 +147,7 @@ export default function ReportPanel({ cs }) {
             </table>
           </>
         )}
+        {cs.level && go && <LevelFooter cs={cs} go={go} />}
       </div>
     </div>
   );

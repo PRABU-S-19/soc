@@ -35,9 +35,9 @@ R.statusAfterReview = (await (await fetch(`${base}/api/demo/${done.id}`)).json()
 await page.goto(`${base}/#/demo/${done.id}/summary`);
 await page.waitForSelector('[data-tour~="summary-actions"]');
 await page.click('button:has-text("Open normal simulation")');
-await page.waitForSelector('[data-tour~="home-scenario"]'); await page.waitForTimeout(300);
-// Scrolled to the scenario list, or as far towards it as a short page allows.
-R.openNormal = page.url().endsWith('#/') && await page.evaluate(() => document.getElementById('start-a-shift').getBoundingClientRect().top < 200 || scrollY >= document.documentElement.scrollHeight - innerHeight - 2);
+await page.waitForSelector('[data-tour~="home-level"]'); await page.waitForTimeout(300);
+// Scrolled to the levels, or as far towards it as a short page allows.
+R.openNormal = page.url().endsWith('#/') && await page.evaluate(() => document.getElementById('your-levels').getBoundingClientRect().top < 200 || scrollY >= document.documentElement.scrollHeight - innerHeight - 2);
 await page.click('[data-tour~="home-demo-start"]');
 await page.waitForSelector('[data-tour~="demo-resume"]');
 R.finishedCard = await page.locator('[data-tour~="demo-resume"] h2').textContent();

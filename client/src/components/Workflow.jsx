@@ -46,6 +46,25 @@ function PickMany({ options, value, onChange, placeholder, disabled }) {
   );
 }
 
+// Intermediate: a hint is requested per question and caps its credit.
+function HintLink({ f, cs, locked }) {
+  const [text, setText] = useState(f.hintText || null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  if (text) return <p className="fld-hint" role="note"><strong>Hint</strong> (credit for this question is capped at 80%): {text}</p>;
+  if (locked || cs.status !== 'open') return null;
+  return (
+    <p className="fld-hint-ask">
+      <button type="button" className="link" disabled={busy} onClick={async () => {
+        setBusy(true);
+        try { const r = await api.hint(cs.id, cs.current.id, f.id); setText(r.hint); } catch (e) { setErr(e); } finally { setBusy(false); }
+      }}>Show hint</button>
+      <span className="muted small"> Using it caps this question at 80% credit.</span>
+      {err && <span className="small danger"> {err.message}</span>}
+    </p>
+  );
+}
+
 function Field({ f, value, onChange, cs, links, onLinks, fb }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const locked = !!fb?.locked;
@@ -192,6 +211,7 @@ function Field({ f, value, onChange, cs, links, onLinks, fb }) {
         </div>
       )}
       {fb?.message && <p className="fld-msg">{fb.message}</p>}
+      {f.hintAvailable && <HintLink f={f} cs={cs} locked={fb?.locked} />}
     </div>
   );
 }

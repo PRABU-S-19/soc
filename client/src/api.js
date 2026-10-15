@@ -3,30 +3,57 @@
 
 export class ApiError extends Error {
   constructor(status, body) {
-    super(body?.error || `Request failed (${status})`);
+    super(body?.message || body?.error || `Request failed (${status})`);
     this.status = status;
+    this.code = body?.error;
     this.body = body || {};
   }
 }
 
+// App-level listeners: a lost session shows the sign-in page,
+// a newly earned badge opens the badge dialog over whatever screen is open.
+const listeners = { noSession: new Set(), awards: new Set() };
+export const onApi = (kind, fn) => { listeners[kind].add(fn); return () => listeners[kind].delete(fn); };
+const emit = (kind, v) => listeners[kind].forEach((fn) => { try { fn(v); } catch { /* listener error */ } });
+
 async function call(method, url, body) {
   const res = await fetch(url, {
     method,
+    credentials: 'same-origin',
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   let data = null;
   try { data = await res.json(); } catch { /* empty body */ }
-  if (!res.ok) throw new ApiError(res.status, data);
+  if (!res.ok) {
+    if (res.status === 401 && data?.error === 'no_session') emit('noSession', data);
+    throw new ApiError(res.status, data);
+  }
+  if (data && Array.isArray(data.awards) && data.awards.length) emit('awards', data.awards);
   return data;
 }
 
 const enc = encodeURIComponent;
 
 export const api = {
+  // Session and record
+  sessionInfo: () => call('GET', '/api/session/info'),
+  signIn: (token) => call('POST', '/api/session', { token }),
+  signInLocal: (name) => call('POST', '/api/session/local', { name }),
+  signOut: () => call('POST', '/api/session/logout'),
+  me: () => call('GET', '/api/me'),
+  levels: () => call('GET', '/api/levels'),
+  level: (id) => call('GET', `/api/levels/${enc(id)}`),
+  attempts: (limit = 20) => call('GET', `/api/attempts?limit=${limit}`),
+  attempt: (id) => call('GET', `/api/attempts/${enc(id)}`),
+  startAttempt: (scenarioId) => call('POST', '/api/attempts', { scenarioId }),
+  abandon: (id) => call('POST', `/api/attempts/${enc(id)}/abandon`),
+  awards: () => call('GET', '/api/awards'),
+  report: () => call('GET', '/api/report'),
+
+  // Cases
   scenarios: () => call('GET', '/api/scenarios'),
   cases: () => call('GET', '/api/cases'),
-  createCase: (scenarioId, analyst) => call('POST', '/api/cases', { scenarioId, analyst }),
   getCase: (id) => call('GET', `/api/cases/${id}`),
   deleteCase: (id) => call('DELETE', `/api/cases/${id}`),
   ack: (id) => call('POST', `/api/cases/${id}/ack`),
@@ -47,6 +74,8 @@ export const api = {
   tool: (id, tool, input, filter) => call('POST', `/api/cases/${id}/tools/${tool}`, { input, filter }),
   action: (id, body) => call('POST', `/api/cases/${id}/actions`, body),
   submit: (id, body) => call('POST', `/api/cases/${id}/submit`, body),
+  hint: (id, stageId, fieldId) => call('POST', `/api/cases/${id}/hint`, { stageId, fieldId }),
+  heartbeat: (id, visible) => call('POST', `/api/cases/${id}/heartbeat`, { visible }),
 };
 
 // Newbie Demo Mode and the homepage walkthrough. Separate from the case API.
@@ -62,3 +91,6 @@ export const demoApi = {
   summary: (id) => call('GET', `/api/demo/${id}/summary`),
   preview: (point) => call('POST', '/api/tour/preview', { point }),
 };
+
+// The signed-in analyst, set at start-up or sign-in (App.jsx).
+export const session = { me: null, homeUrl: null };

@@ -28,10 +28,9 @@ const next = async (n = 1) => { for (let i = 0; i < n; i++) { await primary().cl
 
 // 1. Normal simulation is usable without opening either guide.
 await page.goto(base + '/#/');
-await page.waitForSelector(T('home-scenario'));
+await page.waitForSelector(T('home-level'));
 R.homeHasBothEntries = (await page.locator(T('home-demo-start')).count()) === 1 && (await page.locator(T('home-tour-start')).count()) === 1;
 R.noTourByDefault = (await page.locator('.gt-panel').count()) === 0;
-await page.fill(`${T('home-analyst')} input`, 'edge.tester');
 
 // 2. Rapid double click on Start creates one demo session.
 const before = await demos();
@@ -99,7 +98,7 @@ R.refreshSameSession = page.url() === url1;
 await page.click('.gt-tools .gt-tool:has-text("Exit")');
 await page.screenshot({ path: `${out}/e-exit-menu.png` });
 await page.click('.gt-menu-item:has-text("Pause and return home")');
-await page.waitForSelector(T('home-scenario'));
+await page.waitForSelector(T('home-level'));
 R.pausedToHome = page.url().endsWith('#/');
 R.demoNotInCasesList = await page.locator(`${T('home-cases')} tbody tr`).count();
 await page.click(T('home-demo-start'));
@@ -113,17 +112,21 @@ R.resumedAt = await step();
 // 8. Exit midway, then use the normal simulation.
 await page.click('.gt-tools .gt-tool:has-text("Exit")');
 await page.click('.gt-menu-item:has-text("Exit the demo")');
-await page.waitForSelector(T('home-scenario'));
-await page.locator(T('home-start')).nth(1).click();
+await page.waitForSelector(T('home-level'));
+await page.locator(`${T('home-level')} button:has-text("Open level")`).first().click();
+await page.waitForSelector('.scenario');
+await page.locator('.scenario .sc-actions button:text-is("Start")').first().click();
 await page.waitForSelector('.topbar');
 R.normalCaseOpens = /#\/case\//.test(page.url());
 R.normalCaseHasNoGuide = (await page.locator('.gt-panel').count()) === 0;
-R.normalCaseHasNoDemoTag = (await page.locator('.kind-tag').count()) === 0;
+R.normalCaseHasNoDemoTag = (await page.locator('.kind-tag:not(.level-tag)').count()) === 0;
 await page.waitForSelector(T('ack'), { timeout: 15000 });
 await page.click(T('ack')); await page.waitForSelector(T('stage-form'));
 R.normalTicket = (await page.locator('.ticket').textContent()).trim();
 R.normalFinaliseRule = await page.locator(`${T('workflow')} .wf-intro`).textContent().then((t) => !/guided demo/i.test(t));
 await page.click('.topbar .back');
+R.backGoesToLevel = /#\/level\/foundations/.test(page.url());
+await page.goto(`${base}/#/`);
 await page.waitForSelector(`${T('home-cases')} tbody tr`);
 R.casesListed = await page.locator(`${T('home-cases')} tbody tr`).count();
 
@@ -147,7 +150,7 @@ await page.goto(`${base}/#/demo/ffffffffffff/summary`);
 await page.waitForSelector('.demo-card');
 R.expiredSummary = (await page.locator('.demo-card h1').textContent());
 await page.click('.demo-card .btn:has-text("Return home")');
-await page.waitForSelector(T('home-scenario'));
+await page.waitForSelector(T('home-level'));
 
 // 11. Walkthrough: start, skip, restart, exit; survives a refresh; never blocks the simulation.
 await page.click(T('home-tour-start'));
@@ -162,12 +165,13 @@ await page.click('.gt-tools .gt-tool:has-text("Exit")');
 await page.click('.gt-menu-item:has-text("Restart from the first step")'); await page.waitForTimeout(300);
 R.tourRestart = await step();
 // The page underneath stays usable while the tour is open.
-await page.fill(`${T('home-analyst')} input`, 'still.usable');
-R.homeUsableDuringTour = await page.inputValue(`${T('home-analyst')} input`);
+await page.locator(`${T('home-level')} button:has-text("Open level")`).first().click();
+R.homeUsableDuringTour = /#\/level\//.test(page.url());
 await page.click('.gt-tools .gt-tool:has-text("Exit")');
 await page.click('.gt-menu-item:has-text("Exit the walkthrough")');
 await page.waitForTimeout(300);
 R.tourClosed = (await page.locator('.gt-panel').count()) === 0;
+await page.goto(`${base}/#/`); await page.waitForSelector(T('home-level'));
 // Keyboard: Escape collapses the panel; controls are reachable by Tab.
 await page.click(T('home-tour-start')); await page.waitForSelector('.gt-panel');
 R.focusOnHeading = await page.evaluate(() => document.activeElement?.id);

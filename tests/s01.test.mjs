@@ -11,7 +11,7 @@ after(stop);
 
 test('catalogue does not describe what is behind the alert', async () => {
   const { body } = await api('GET', '/api/scenarios');
-  const entry = body.find((s) => s.id === 's01-beacon');
+  const entry = body.find((s) => s.id === 'E1');
   assert.ok(entry);
   assert.doesNotMatch(JSON.stringify(entry), /phish|macro|lsass|msync|FS01|malware|true positive/i);
 });
@@ -120,24 +120,15 @@ test('L2 investigation: tools, retries, evidence linking', async () => {
 
   const good = await solveStage(id, scn, 'l2_investigation');
 
-  // Round 1: two wrong answers and one unlinked finding.
+  // v2: Expert allows one submission round per stage, so two wrong answers
+  // and one unlinked finding are final and cost credit; no hint is shown.
   const wrong = { values: { ...good.values, persistence: 'task', data: 'exfil' }, links: { ...good.links, lateral: [] } };
-  let r = await api('POST', `/api/cases/${id}/submit`, wrong);
-  assert.equal(r.body.outcome.complete, false);
-  assert.equal(r.body.outcome.attemptsLeft, 2);
-  const fb = Object.fromEntries(r.body.case.current.feedback.map((f) => [f.id, f]));
-  assert.equal(fb.persistence.verdict, 'incorrect');
-  assert.ok(fb.persistence.message, 'a hint is given');
-  assert.equal(fb.vector.verdict, 'correct');
-  assert.equal(fb.vector.locked, true);
-  assert.equal(fb.lateral.supported, false);
-
-  // Round 2: corrected.
-  r = await api('POST', `/api/cases/${id}/submit`, good);
+  const r = await api('POST', `/api/cases/${id}/submit`, wrong);
   assert.equal(r.body.outcome.complete, true);
   assert.equal(r.body.case.stage, 'l2_validation');
+  assert.equal(r.body.case.stages.find((x) => x.id === 'l2_investigation').review.find((x) => x.label.startsWith('Persistence')).verdict, 'incorrect');
   const pct = r.body.case.stages.find((x) => x.id === 'l2_investigation').score.pct;
-  assert.ok(pct > 85 && pct < 100, `second-round corrections cost credit (got ${pct})`);
+  assert.ok(pct > 60 && pct < 90, `wrong answers cost credit (got ${pct})`);
 });
 
 test('L2 validation', async () => {

@@ -44,6 +44,17 @@ export const USERS = [
   U('v.sorensen', 'Viktor Sorensen', 'Executive', 'Chief Financial Officer', 'WS-EXE-002', '10.20.70.12', {}),
 ];
 
+// People who appear in specific scenarios. They are in the directory and
+// asset inventory but do not generate background noise, so the noise of
+// existing scenarios is unchanged.
+export const EXTRA_USERS = [
+  U('l.morgan', 'Leah Morgan', 'Finance', 'Credit Controller', 'WS-FIN-021', '10.20.14.44', { manager: 'l.brandt' }),
+  U('r.santos', 'Rui Santos', 'Operations', 'Night Operations Controller', 'WS-OPS-040', '10.20.21.52', { manager: 'j.whitfield', notes: 'Shift: nights 22:00-06:00 (roster OPS-NIGHT). Works remotely through the VPN.' }),
+  U('n.okoye', 'Nneka Okoye', 'Sales', 'Account Executive', 'WS-SAL-012', '10.20.30.24', { manager: 'k.yamamoto', notes: 'New starter. Account created under HR ticket HR-2219.' }),
+  U('g.harlow', 'Gavin Harlow', 'Finance', 'Reporting Analyst (leaver)', 'WS-FIN-030', '10.20.14.52', { manager: 'l.brandt', disabled: true, notes: 'Leaver. Account disabled 21 days ago.' }),
+  U('v.hale', 'Victor Hale', 'Finance', 'Finance IT Analyst', 'WS-FIN-033', '10.20.14.58', { manager: 'l.brandt', notes: 'On leave until Monday.' }),
+];
+
 const SVC = (sam, name, notes, groups, usual) => ({
   sam, name, type: 'service', dept: 'IT', title: 'Service account', groups, notes, usualHosts: usual,
 });
@@ -57,11 +68,20 @@ export const SERVICE_ACCOUNTS = [
     'Used by SCAN01 (10.10.0.60) for authenticated vulnerability scans. Normal pattern: logons originating only from SCAN01 during approved scan windows.',
     ['Scan-ReadOnly', 'Server-LocalAdmins'], ['SCAN01']),
   SVC('svc_web', 'Customer portal application pool', 'IIS application pool identity on WEB01.', ['Web-Service'], ['WEB01']),
-  { sam: 'adm.rkhan', name: 'Rashid Khan (admin)', type: 'admin', dept: 'IT', title: 'Privileged account',
+  SVC('svc_migrate', 'Data migration job account', 'Runs approved bulk file migrations from MIG01.', ['Migration-Operators'], ['MIG01']),
+  SVC('svc_finrpt', 'Finance reporting service account', 'Runs the finance reporting jobs on FIN-APP02. Has read access to the payroll database.', ['Finance-Reporting'], ['FIN-APP02']),
+  SVC('svc_inventory', 'Network inventory account', 'Used by INV01 for asset discovery.', ['Inventory-ReadOnly'], ['INV01']),
+  SVC('krbtgt', 'Kerberos ticket-granting account', 'Built-in. Its key signs every Kerberos ticket in the domain. Resetting it twice invalidates forged tickets.', ['Domain Controllers (built-in)'], ['DC01', 'DC02']),
+  SVC('rt.operator1', 'Red team operator account', 'Created for exercise RT-2026-04. Expires at the end of the engagement.', ['RedTeam-Exercise'], ['FIN-APP02']),
+  { sam: 'adm.rkhan', name: 'Rashid Khan (admin)', type: 'admin', of: 'r.khan', dept: 'IT', title: 'Privileged account',
     groups: ['Domain Admins'], notes: 'Tier-0 administrative account. Should only log on to DC01, DC02 and JUMP01.', usualHosts: ['JUMP01', 'DC01', 'DC02'] },
+  { sam: 'adm.emorales', name: 'Elena Morales (admin)', type: 'admin', of: 'e.morales', dept: 'IT', title: 'Privileged account',
+    groups: ['Server-LocalAdmins'], notes: 'Server administration account. Normally used from WS-IT-005 and JUMP01.', usualHosts: ['WS-IT-005', 'JUMP01'] },
+  { sam: 'adm.vhale', name: 'Victor Hale (admin)', type: 'admin', of: 'v.hale', dept: 'Finance', title: 'Privileged account',
+    groups: ['Finance-Server-Admins'], notes: 'Finance IT administration account for FIN01. Owner is on leave until Monday.', usualHosts: ['WS-FIN-033', 'JUMP01'] },
 ];
 
-export const ACCOUNTS = [...USERS, ...SERVICE_ACCOUNTS];
+export const ACCOUNTS = [...USERS, ...EXTRA_USERS, ...SERVICE_ACCOUNTS];
 
 const S = (name, ip, role, criticality, vlan, os, owner, notes = '') => ({
   name, ip, role, criticality, vlan, os, owner, notes, kind: 'server',
@@ -83,9 +103,18 @@ export const SERVERS = [
   S('WEB01', '172.16.5.10', 'Customer portal (DMZ)', 'High', 'DMZ', 'Windows Server 2019', 'Application Support'),
   S('VPN01', '172.16.5.20', 'Remote access VPN concentrator (DMZ)', 'High', 'DMZ', 'Appliance', 'IT Infrastructure'),
   S('FW01', '10.10.0.1', 'Perimeter / inter-VLAN firewall', 'Critical', 'SERVERS', 'Appliance', 'IT Security'),
+  S('FS02', '10.10.0.22', 'File server (new storage, Projects share)', 'High', 'SERVERS', 'Windows Server 2022', 'IT Infrastructure'),
+  S('WAF01', '172.16.5.11', 'Web application firewall in front of WEB01', 'High', 'DMZ', 'Appliance', 'IT Security'),
+  S('INV01', '10.10.0.62', 'Network inventory and discovery', 'Medium', 'SERVERS', 'Linux appliance', 'IT Infrastructure', 'Runs the weekly asset discovery sweep.'),
+  S('APP02', '10.10.0.46', 'Finance reporting server', 'High', 'SERVERS', 'Windows Server 2019', 'Finance Systems'),
+  S('MIG01', '10.10.0.64', 'Data migration host', 'Medium', 'SERVERS', 'Windows Server 2022', 'IT Infrastructure'),
+  S('FIN01', '10.10.0.48', 'Finance server (payroll exports)', 'Critical', 'SERVERS', 'Windows Server 2019', 'Finance Systems', 'Holds the Payroll$ share. Access is limited to Finance IT.'),
+  S('FIN-APP02', '10.10.0.49', 'Finance application server', 'High', 'SERVERS', 'Windows Server 2019', 'Finance Systems'),
+  S('PAY-DB01', '10.10.0.50', 'Production payroll database', 'Critical', 'SERVERS', 'Windows Server 2022', 'Finance Systems', 'Production payroll data. Excluded from all testing.'),
+  S('OPS-TERM01', '10.10.0.75', 'Operations terminal server', 'High', 'SERVERS', 'Windows Server 2022', 'Operations'),
 ];
 
-export const WORKSTATIONS = USERS.map((u) => ({
+export const WORKSTATIONS = [...USERS, ...EXTRA_USERS].map((u) => ({
   name: u.host, ip: u.ip, role: `Workstation (${u.dept})`, criticality: u.dept === 'Executive' ? 'High' : 'Medium',
   vlan: 'USERS', os: 'Windows 11 Enterprise 23H2', owner: u.sam, kind: 'workstation', notes: '',
 }));
@@ -95,6 +124,15 @@ export const HOSTS = [...SERVERS, ...WORKSTATIONS];
 const hostByName = new Map(HOSTS.map((h) => [h.name.toUpperCase(), h]));
 const hostByIp = new Map(HOSTS.map((h) => [h.ip, h]));
 const acctBySam = new Map(ACCOUNTS.map((a) => [a.sam.toLowerCase(), a]));
+
+// v2 environment records (Build specification, section 10.2).
+export const VPN_POOL = '10.50.0';
+export const TENANT = { name: 'meridianfreight.onmicrosoft.com', apps: ['Office 365', 'Azure Portal', 'Salesforce', 'VPN SAML'] };
+export const AWS = {
+  account: '441900170632', iamUsers: ['ci-deploy', 'cloud.admin', 'svc-backup-s3'], roles: ['ci-deploy', 'ec2-app-role'],
+  buckets: ['mf-invoices-prod', 'mf-backups', 'mf-web-assets'], ciRunner: '10.10.0.80',
+};
+export const WEB_APPS = ['portal.meridianfreight.example', 'track.meridianfreight.example'];
 
 export const hostNamed = (n) => hostByName.get(String(n || '').toUpperCase());
 export const hostAt = (ip) => hostByIp.get(ip);

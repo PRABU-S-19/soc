@@ -16,8 +16,15 @@ import { gradeField, validateField, verdictOf, describeValue, describeExpected }
 import { deriveState, executeAction, publicResponse, evaluateResponse, HttpError } from './response.js';
 import { TOOLS, runTool } from './tools.js';
 import { buildReport } from './report.js';
+import { buildAlias, IDENTITY } from './alias.js';
+import * as aliasModule from './alias.js';
+import { levelById } from '../levels.js';
 
 const streams = new Map();
+const aliases = new Map();
+// Hooks set by the attempt layer (server/attempts.js) so this module does
+// not depend on it.
+export const hooks = { onClose: null, onChange: null };
 // Read-only sample tickets for the homepage walkthrough. Held in memory
 // only: they are never written to the case store and never listed.
 const ephemeral = new Map();
@@ -30,14 +37,34 @@ export function getCase(id) {
   return c;
 }
 
+// The alias map of a level attempt (identity for demo and preview cases).
+export function aliasFor(c) {
+  if (!c.variant || c.variant.canonical) return IDENTITY;
+  let a = aliases.get(c.id);
+  if (!a) {
+    a = buildAlias(c.variant.seed, getScenario(c.scenarioId).entities || {});
+    aliases.set(c.id, a);
+  }
+  return a;
+}
+
 export function streamFor(c) {
   let s = streams.get(c.id);
   if (!s) {
-    s = new LogStream(c, getScenario(c.scenarioId));
+    s = new LogStream(c, getScenario(c.scenarioId), aliasFor(c));
     streams.set(c.id, s);
   }
   return s;
 }
+
+// Level rules for this case: rounds, decay and hint policy. Demo and
+// preview cases keep the scenario's own settings.
+export function rulesFor(c) {
+  const lv = c.level ? levelById(c.level) : null;
+  return lv ? { rounds: lv.rounds, decay: lv.decay, hints: lv.hints, hintCap: lv.hintCap ?? 1 } : null;
+}
+const roundsOf = (c, def) => rulesFor(c)?.rounds ?? (def.attempts || 1);
+const decayOf = (c) => rulesFor(c)?.decay ?? DECAY;
 
 const stageDef = (scn, id) => scn.stages.find((s) => s.id === id);
 const currentDef = (c) => stageDef(getScenario(c.scenarioId), c.stage);
@@ -54,9 +81,10 @@ const actorOf = (c) => {
 // `kind` is set only by the guided-demo and walkthrough modules, never from
 // a request body. Without it the case is an ordinary assessment case and
 // hidden (demo-only) scenarios are refused.
-export function createCase({ scenarioId, analyst, kind, backdateSeconds = 0 }) {
+export function createCase({ scenarioId, analyst, kind, backdateSeconds = 0, userId, attempt }) {
   const scn = getScenario(scenarioId);
   if (!scn || (scn.hidden && !kind) || (kind && !scn.hidden)) throw new HttpError(400, 'Unknown scenario.');
+  if (!kind && !attempt) throw new HttpError(400, 'use_attempts', { message: 'Level scenarios are started through POST /api/attempts.' });
   const now = Date.now();
   const year = new Date(now).getUTCFullYear();
   let ticket;
@@ -68,8 +96,12 @@ export function createCase({ scenarioId, analyst, kind, backdateSeconds = 0 }) {
     ticket,
     ...(kind ? { kind } : {}),
     scenarioId,
-    seed: crypto.randomBytes(8).toString('hex'),
+    seed: attempt ? String(attempt.seed) : crypto.randomBytes(8).toString('hex'),
     t0: now - backdateSeconds * 1000,
+    ...(userId ? { userId } : {}),
+    ...(attempt ? { attemptId: attempt.attemptId, level: scn.level, code: scn.code, variant: { seed: attempt.seed, canonical: !!attempt.canonical } } : {}),
+    hints: {},
+    searches: [],
     analyst: String(analyst || 'analyst').trim().slice(0, 40) || 'analyst',
     status: 'monitoring',
     stage: scn.stages[0].id,
@@ -89,6 +121,7 @@ export function createCase({ scenarioId, analyst, kind, backdateSeconds = 0 }) {
     report: null,
   };
   log(c, 'System', 'system', `Shift started. Monitoring the ${scn.catalog.queue} queue.`, { ts: c.t0 });
+  if (attempt && !attempt.canonical) c.aliasMap = aliasFor(c).pairs;
   if (kind === 'preview') ephemeral.set(c.id, c); else store.put(c);
   streamFor(c);
   return c;
@@ -123,12 +156,24 @@ export function tick(c, now = Date.now()) {
 // ---------------------------------------------------------------------------
 // Public (analyst-facing) views
 // ---------------------------------------------------------------------------
-function publicField(f, c, stream) {
-  const { key, ...pub } = f;
+function publicField(f, c, stream, st) {
+  const { key, skills, ...pub } = f;
   if (f.type === 'checks') pub.items = key.checks.map((ch) => ({ id: ch.id, label: ch.label, done: !!ch.test(c, stream) }));
   if (f.type === 'order') {
     const r = rng(c.seed, 'order', f.id);
     pub.items = f.items.map((it) => [r.f(), it]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  }
+  // Level attempts show options in a per-attempt order; option ids are stable.
+  if (c.variant && !c.variant.canonical && Array.isArray(f.options) && ['single', 'multi'].includes(f.type)) {
+    const r = rng(c.seed, 'options', f.id);
+    pub.options = f.options.map((o) => [r.f(), o]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  }
+  // Intermediate: a hint can be requested per question. Its text is only
+  // sent once requested.
+  const rules = rulesFor(c);
+  if (rules?.hints === 'request' && f.key?.hint && f.type !== 'longtext') {
+    pub.hintAvailable = true;
+    if (c.hints?.[st?.id]?.includes(f.id)) pub.hintText = f.key.hint;
   }
   return pub;
 }
@@ -151,11 +196,12 @@ function publicStage(c, def, stream) {
   const st = c.stages[def.id];
   const out = {
     id: def.id, label: def.label, tier: def.tier, kind: def.kind, intro: def.intro,
-    attempts: def.attempts || 1, attemptsUsed: st.attempts || 0, submitLabel: def.submitLabel,
+    attempts: roundsOf(c, def), attemptsUsed: st.attempts || 0, submitLabel: def.submitLabel,
     ...(def.noFinalize ? { noFinalize: true } : {}),
+    ...(rulesFor(c) ? { hintPolicy: rulesFor(c).hints } : {}),
   };
   if (def.kind === 'form') {
-    out.fields = def.fields.map((f) => publicField(f, c, stream));
+    out.fields = def.fields.map((f) => publicField(f, c, stream, { id: def.id }));
     out.draft = st.draft || { values: {}, links: {} };
     out.feedback = fieldFeedback(def, st);
   }
@@ -190,17 +236,30 @@ function metrics(c) {
   return m;
 }
 
+// Stage percentage, including the collateral-action deduction on response
+// stages (5 points each, at most 20).
+export function stagePct(st) {
+  if (!st?.score) return 0;
+  const raw = st.score.max ? (st.score.earned / st.score.max) * 100 : 0;
+  return Math.max(0, raw - (st.collateralPenalty || 0));
+}
+
+// Scenario score: weighted mean of reachable stages, rounded half up. A
+// stage skipped because of a correct earlier decision is left out; a stage
+// missed because of a wrong decision (st.missed) counts as zero.
 export function totalScore(c) {
   const scn = getScenario(c.scenarioId);
   let w = 0;
   let got = 0;
   for (const def of scn.stages) {
     const st = c.stages[def.id];
-    if (!def.weight || st.status !== 'done' || !st.score) continue;
+    if (!def.weight) continue;
+    if (st.missed) { w += def.weight; continue; }
+    if (st.status !== 'done' || !st.score) continue;
     w += def.weight;
-    got += def.weight * (st.score.max ? st.score.earned / st.score.max : 0);
+    got += def.weight * (stagePct(st) / 100);
   }
-  return w ? Math.round((got / w) * 100) : null;
+  return w ? Math.floor((got / w) * 100 + 0.5 + 1e-9) : null;
 }
 
 export function caseSummary(c) {
@@ -232,7 +291,8 @@ export function publicCase(c) {
     stages: scn.stages.map((s) => ({
       id: s.id, label: s.label, tier: s.tier, status: c.stages[s.id].status,
       score: c.stages[s.id].score && c.stages[s.id].status === 'done' && s.weight
-        ? { pct: Math.round((c.stages[s.id].score.earned / c.stages[s.id].score.max) * 100) } : null,
+        ? { pct: Math.round(stagePct(c.stages[s.id])) } : null,
+      ...(c.stages[s.id].missed ? { missed: true } : {}),
       result: c.stages[s.id].status === 'done' ? c.stages[s.id].result : undefined,
       review: c.stages[s.id].status === 'done' && s.kind === 'form' ? stageReview(s, c.stages[s.id]) : undefined,
     })),
@@ -244,6 +304,7 @@ export function publicCase(c) {
     directory: publicDirectory(),
     metrics: metrics(c),
     report: c.status === 'closed' ? c.report : null,
+    ...(c.attemptId ? { attemptId: c.attemptId, level: c.level, code: c.code, rules: rulesFor(c) } : {}),
   };
   return c.kind === 'preview' ? redactPreview(pub) : pub;
 }
@@ -383,7 +444,7 @@ export function saveDraft(c, { values = {}, links = {} }) {
 export function tool(c, id, body) {
   requireOpen(c);
   const def = currentDef(c);
-  const ctx = { c, scenario: getScenario(c.scenarioId), stream: streamFor(c), tier: TIER_NUM[def.tier] || 1 };
+  const ctx = { c, scenario: getScenario(c.scenarioId), stream: streamFor(c), tier: TIER_NUM[def.tier] || 1, visibleInput: body?._visibleInput };
   ctx.stream.ensure();
   const { def: tdef, input, result } = runTool(ctx, id, body || {});
   c.toolRuns.push({ ts: Date.now(), tool: id, input: input.toLowerCase(), filter: String(body?.filter || '').toLowerCase(), stage: c.stage });
@@ -426,10 +487,13 @@ function summarise(def, values) {
 
 function gradeForm(c, def, st, values, links, stream) {
   st.attempts = (st.attempts || 0) + 1;
-  const factor = DECAY[Math.min(st.attempts - 1, DECAY.length - 1)];
+  const decay = decayOf(c);
+  const factor = decay[Math.min(st.attempts - 1, decay.length - 1)];
   st.fields ||= {};
   const pinned = new Set(c.pins.map((p) => p.eventId));
-  const maxAttempts = def.attempts || 1;
+  const maxAttempts = roundsOf(c, def);
+  const rules = rulesFor(c);
+  const hinted = new Set(c.hints?.[def.id] || []);
   for (const f of def.fields) {
     const fs = (st.fields[f.id] ||= { credit: 0, best: 0, locked: false });
     if (!fs.locked) {
@@ -437,7 +501,10 @@ function gradeForm(c, def, st, values, links, stream) {
       fs.tries = (fs.tries || 0) + 1;
       fs.value = values[f.id];
       fs.credit = g.credit;
-      fs.best = Math.max(fs.best, g.credit * factor);
+      if (fs.firstCredit === undefined) fs.firstCredit = g.credit;
+      let earned = g.credit * factor;
+      if (hinted.has(f.id) && rules?.hintCap !== undefined) { earned = Math.min(earned, rules.hintCap); fs.hinted = true; }
+      fs.best = Math.max(fs.best, earned);
       fs.detail = g.detail;
       if (g.credit >= 0.999) fs.locked = maxAttempts > 1;
     }
@@ -454,11 +521,18 @@ function gradeForm(c, def, st, values, links, stream) {
     // neither, so they keep the single generic hint.
     const coach = v === 'correct' ? null : coachFor(f, fs.value);
     if (coach) msgs.push(coach);
-    else if (v === 'incorrect' && f.key?.hint && st.attempts < maxAttempts) msgs.push(f.key.hint);
+    // Automatic hints: Foundations, the demo and legacy cases only.
+    else if (v === 'incorrect' && f.key?.hint && st.attempts < maxAttempts && (!rules || rules.hints === 'auto')) { msgs.push(f.key.hint); fs.hintShown = true; }
     if (v !== 'correct' && f.key?.reveal && fs.tries >= 3) msgs.push(`Shown after three tries: ${f.key.reveal}`);
     if (f.linkable && v === 'correct' && !fs.supported) msgs.push('Accepted, but the linked evidence does not corroborate it. Link the pinned event that shows this.');
     fs.message = msgs.join(' ') || undefined;
   }
+  // Every round is kept for the attempt record (canonical values).
+  (st.rounds ||= []).push({
+    round: st.attempts, at: new Date().toISOString(),
+    values: Object.fromEntries(def.fields.filter((f) => f.type !== 'checks').map((f) => [f.id, values[f.id]])),
+    credit: Object.fromEntries(def.fields.map((f) => [f.id, +(st.fields[f.id]?.credit ?? 0).toFixed(3)])),
+  });
 }
 
 export function coachFor(f, value) {
@@ -506,12 +580,13 @@ export function submit(c, body = {}) {
     st.draft = { values, links };
     gradeForm(c, def, st, values, links, stream);
     const allCorrect = def.fields.every((f) => verdictOf(st.fields[f.id].credit) === 'correct' && (!f.linkable || st.fields[f.id].supported));
-    const complete = (def.attempts || 1) <= 1 || finalize || allCorrect || st.attempts >= def.attempts;
+    const rounds = roundsOf(c, def);
+    const complete = rounds <= 1 || finalize || allCorrect || st.attempts >= rounds;
     if (!complete) {
       const right = def.fields.filter((f) => verdictOf(st.fields[f.id].credit) === 'correct').length;
-      log(c, actor, 'stage', `${def.label}: findings submitted for review (attempt ${st.attempts} of ${def.attempts}). ${right} of ${def.fields.length} accepted.`, { ts: now });
+      log(c, actor, 'stage', `${def.label}: findings submitted for review (attempt ${st.attempts} of ${rounds}). ${right} of ${def.fields.length} accepted.`, { ts: now });
       store.save();
-      return { complete: false, attemptsLeft: def.attempts - st.attempts };
+      return { complete: false, attemptsLeft: rounds - st.attempts };
     }
     st.score = scoreForm(def, st);
     st.submission = { values, links };
@@ -528,6 +603,8 @@ export function submit(c, body = {}) {
     const ev = evaluateResponse(c, scn, stream);
     st.score = { earned: Math.max(0, +(ev.earned - ev.penalty).toFixed(2)), max: ev.max };
     st.evaluation = ev;
+    st.collateral = ev.collateral;
+    st.collateralPenalty = Math.min(20, 5 * ev.collateral);
     const done = c.actions.filter((a) => a.ok).length;
     log(c, actor, 'stage', `${def.label} declared complete with ${done} action${done === 1 ? '' : 's'} executed. Handed over for closure review.`, { ts: now });
   } else {
@@ -543,6 +620,8 @@ export function submit(c, body = {}) {
   if (flow.result) st.result = flow.result;
   for (const n of flow.notes || []) log(c, n.actor, 'qa', n.text, { ts: now + 1 });
   const nextId = flow.next !== undefined ? flow.next : order[order.indexOf(def.id) + 1];
+  // Stages passed over because of a wrong decision count as zero.
+  for (const m of flow.missed || []) if (c.stages[m]) c.stages[m].missed = true;
 
   if (def.final || !nextId) {
     c.status = 'closed';
@@ -550,6 +629,10 @@ export function submit(c, body = {}) {
     for (const s of scn.stages) if (c.stages[s.id].status === 'pending') c.stages[s.id].status = 'skipped';
     log(c, 'System', 'system', `Ticket ${c.ticket} closed.`, { ts: now + 2 });
     c.report = buildReport(c, scn, stream, totalScore(c));
+    if (hooks.onClose) {
+      const extra = hooks.onClose(c);
+      if (extra) Object.assign(c.report, extra);
+    }
   } else {
     for (let i = order.indexOf(def.id) + 1; i < order.indexOf(nextId); i++) c.stages[order[i]].status = 'skipped';
     const nd = stageDef(scn, nextId);
@@ -560,9 +643,41 @@ export function submit(c, body = {}) {
   return { complete: true };
 }
 
+// Intermediate: the analyst asks for a hint on one question.
+export function requestHint(c, stageId, fieldId) {
+  requireOpen(c);
+  const rules = rulesFor(c);
+  if (!rules || rules.hints !== 'request') throw new HttpError(403, 'hints_off', { message: rules?.hints === 'auto' ? 'At this level hints appear automatically under a wrong answer.' : 'Hints are not available at this level.' });
+  if (stageId !== c.stage) throw new HttpError(409, 'stage_closed', { message: 'That stage is not open.' });
+  const def = currentDef(c);
+  const f = def.kind === 'form' && def.fields.find((x) => x.id === fieldId);
+  if (!f || !f.key?.hint) throw new HttpError(404, 'no_hint', { message: 'No hint exists for that question.' });
+  if (c.stages[c.stage].fields?.[fieldId]?.locked) throw new HttpError(409, 'stage_closed', { message: 'That question is already accepted.' });
+  c.hints ||= {};
+  const list = (c.hints[stageId] ||= []);
+  if (!list.includes(fieldId)) {
+    list.push(fieldId);
+    log(c, actorOf(c), 'note', `Hint requested: ${f.label}. Credit for this question is capped at ${Math.round(rules.hintCap * 100)}%.`);
+    store.save();
+  }
+  return { hint: f.key.hint, cap: rules.hintCap };
+}
+
+// Searches are recorded (canonical form) so response objectives such as
+// "review the bucket access logs" can be checked.
+export function recordSearch(c, q) {
+  const t = String(q || '').trim();
+  if (!t || c.status === 'closed' || !c.searches) return;
+  if (c.searches[c.searches.length - 1]?.q === t) return;
+  c.searches.push({ ts: Date.now(), q: t.slice(0, 300), stage: c.stage });
+  if (c.searches.length > 400) c.searches.shift();
+  store.save();
+}
+
 export function removeCase(c) {
   if (c.kind === 'preview') throw new HttpError(403, READ_ONLY);
   streams.delete(c.id);
+  aliases.delete(c.id);
   store.remove(c.id);
 }
 
@@ -572,3 +687,13 @@ export function dropPreview(id) {
 }
 
 export { describeValue, describeExpected };
+
+// Daily wipe: forget every in-memory stream and alias map.
+export function dropAll() {
+  streams.clear();
+  aliases.clear();
+  ephemeral.clear();
+}
+
+// Exposed for tests.
+export const __alias = aliasModule;

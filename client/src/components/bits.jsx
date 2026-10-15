@@ -20,7 +20,10 @@ export function duration(sec) {
   return `${sec}s`;
 }
 
-export const SOURCE_LABEL = { proxy: 'Proxy', dns: 'DNS', email: 'Email', edr: 'Endpoint', winsec: 'Windows', firewall: 'Firewall', audit: 'Audit' };
+export const SOURCE_LABEL = {
+  proxy: 'Proxy', dns: 'DNS', email: 'Email', edr: 'Endpoint', winsec: 'Windows', firewall: 'Firewall', audit: 'Audit',
+  vpn: 'VPN', idp: 'Identity', winsys: 'Windows system', fileaudit: 'File audit', web: 'Web', m365: 'Mail audit', aws: 'AWS',
+};
 
 export function SourceTag({ source }) {
   return <span className={`src src-${source}`}>{SOURCE_LABEL[source] || source}</span>;

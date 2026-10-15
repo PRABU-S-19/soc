@@ -223,7 +223,6 @@ const tasks = {
 await page.goto(base + '/#/');
 await page.click(T('home-demo-start'));
 await page.waitForSelector(T('demo-begin'));
-await page.fill('.analyst input', 'pw.learner');
 await snap('00-intro');
 await page.click(T('demo-begin'));
 await page.waitForSelector('.gt-panel');

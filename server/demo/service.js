@@ -18,10 +18,11 @@ const recent = new Map(); // start/reset nonce -> case id, so a double click can
 
 export const demoInfo = () => ({ ...INTRO, steps: STEPS.map((title, i) => ({ n: i + 1, title })) });
 
-export function demoCase(id) {
+// A demo session belongs to the signed-in user who started it.
+export function demoCase(id, user) {
   let c;
   try { c = getCase(id); } catch { c = null; }
-  if (!c || c.kind !== 'demo') throw new HttpError(404, 'This demo session is no longer available. Start a new one from the home page.');
+  if (!c || c.kind !== 'demo' || (user && c.userId && c.userId !== user.uid)) throw new HttpError(404, 'This demo session is no longer available. Start a new one from the home page.');
   return c;
 }
 
@@ -31,28 +32,28 @@ function sweep() {
   for (const [k, v] of recent) if (now - v.at > 60000) recent.delete(k);
 }
 
-function fresh(analyst) {
-  const c = createCase({ scenarioId: DEMO_SCENARIO, analyst, kind: 'demo' });
+function fresh(analyst, userId) {
+  const c = createCase({ scenarioId: DEMO_SCENARIO, analyst, kind: 'demo', userId });
   c.demo = { status: 'active', cursor: BEATS[0].id, done: {}, skipped: {}, tries: {}, results: {}, startedAt: Date.now() };
   store.save();
   return c;
 }
 
-export function startDemo({ analyst, resumeId, nonce } = {}) {
+export function startDemo({ analyst, resumeId, nonce, user } = {}) {
   sweep();
-  const key = nonce ? String(nonce).slice(0, 64) : null;
+  const key = nonce ? `${user?.uid || ''}:${String(nonce).slice(0, 64)}` : null;
   if (key && recent.has(key)) {
-    try { return demoCase(recent.get(key).id); } catch { recent.delete(key); }
+    try { return demoCase(recent.get(key).id, user); } catch { recent.delete(key); }
   }
   if (resumeId) {
     try {
-      const c = demoCase(String(resumeId));
+      const c = demoCase(String(resumeId), user);
       if (c.demo.status !== 'completed') c.demo.status = 'active';
       store.save();
       return c;
     } catch { /* gone: fall through to a new session */ }
   }
-  const c = fresh(analyst);
+  const c = fresh(user?.name || analyst, user?.uid);
   if (key) recent.set(key, { id: c.id, at: Date.now() });
   return c;
 }
@@ -62,16 +63,16 @@ export function resetDemo(c, nonce) {
   const key = nonce ? `r:${String(nonce).slice(0, 64)}` : null;
   const analyst = c.analyst;
   removeCase(c);
-  const n = fresh(analyst);
+  const n = fresh(analyst, c.userId);
   if (key) recent.set(key, { id: n.id, at: Date.now() });
   return n;
 }
-export function resetDemoById(id, nonce) {
+export function resetDemoById(id, nonce, user) {
   const key = nonce ? `r:${String(nonce).slice(0, 64)}` : null;
   if (key && recent.has(key)) {
-    try { return demoCase(recent.get(key).id); } catch { recent.delete(key); }
+    try { return demoCase(recent.get(key).id, user); } catch { recent.delete(key); }
   }
-  return resetDemo(demoCase(id), nonce);
+  return resetDemo(demoCase(id, user), nonce);
 }
 
 const isDone = (c, b) => !!c.demo.done[b.id];

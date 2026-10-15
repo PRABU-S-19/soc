@@ -74,16 +74,21 @@ async function perform(id, beatId) {
 
 test('the demo scenario is hidden from the normal simulation', async () => {
   const list = await api('GET', '/api/scenarios');
-  assert.deepEqual(list.body.map((s) => s.id), ['s01-beacon', 's02-authfail']);
+  assert.ok(!list.body.some((s) => s.id === DEMO), 'the demo scenario is not listed');
+  assert.ok(list.body.every((s) => s.code && s.level), 'every listed scenario is a level scenario');
   const direct = await api('POST', '/api/cases', { scenarioId: DEMO, analyst: 'x' });
   assert.equal(direct.status, 400);
-  // A request body cannot turn an assessment case into a demo or preview.
-  const inj = await api('POST', '/api/cases', { scenarioId: 's02-authfail', analyst: 'x', kind: 'demo', backdateSeconds: 9999 });
-  assert.equal(inj.status, 201);
-  assert.equal(inj.body.kind, undefined);
-  assert.match(inj.body.ticket, /^INC-/);
-  assert.ok(Date.now() - inj.body.createdAt < 5000);
-  await api('DELETE', `/api/cases/${inj.body.id}`);
+  // A request body cannot turn an assessment case into a demo or preview:
+  // v2 refuses direct case creation, and the attempt route ignores `kind`.
+  const inj = await api('POST', '/api/cases', { scenarioId: 'F3', analyst: 'x', kind: 'demo', backdateSeconds: 9999 });
+  assert.equal(inj.status, 400);
+  const att = await api('POST', '/api/attempts', { scenarioId: 'F3', kind: 'demo', backdateSeconds: 9999 }, { user: 'inject.check' });
+  assert.equal(att.status, 201);
+  const c = await api('GET', `/api/cases/${att.body.caseId}`, undefined, { user: 'inject.check' });
+  assert.equal(c.body.kind, undefined);
+  assert.match(c.body.ticket, /^INC-/);
+  assert.ok(Date.now() - c.body.createdAt < 5000);
+  await api('POST', `/api/attempts/${att.body.attemptId}/abandon`, undefined, { user: 'inject.check' });
 });
 
 test('starting a demo creates one isolated session', async () => {

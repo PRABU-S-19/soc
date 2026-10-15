@@ -1,6 +1,6 @@
 {
   "name": "soc-sim",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "description": "SOC analyst simulation: live log stream, L1 triage, L2 investigation, L3 response, ticket closure",
@@ -12,7 +12,8 @@
     "dev:server": "node --watch server/index.js",
     "dev:client": "vite --config client/vite.config.js",
     "build": "vite build --config client/vite.config.js",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "start:dev": "node scripts/start-dev.mjs"
   },
   "dependencies": {
     "express": "^4.21.2"

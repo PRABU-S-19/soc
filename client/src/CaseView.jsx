@@ -48,7 +48,9 @@ function StageRail({ cs, review, setReview }) {
   );
 }
 
-export default function CaseView({ id, goHome }) {
+const LEVEL_NAME = { foundations: 'Foundations', intermediate: 'Intermediate', expert: 'Expert' };
+
+export default function CaseView({ id, goHome, go }) {
   const [cs, setCs] = useState(null);
   const [loadErr, setLoadErr] = useState(null);
   const [err, setErr] = useState(null);
@@ -95,7 +97,7 @@ export default function CaseView({ id, goHome }) {
   useEffect(() => {
     let dead = false;
     seen.current = new Set();
-    api.getCase(id).then((c) => { if (!dead) setCs(c); }).catch((e) => { if (!dead) setLoadErr(e); });
+    api.getCase(id).then((c) => { if (!dead) { setCs(c); if (c.status === 'closed' && c.report) setTab('report'); } }).catch((e) => { if (!dead) setLoadErr(e); });
     api.logs(id, { limit: 120 }).then((r) => { if (!dead) push(r.events); }).catch(() => {});
     const es = new EventSource(`/api/cases/${id}/stream`);
     es.addEventListener('hello', () => setConnected(true));
@@ -107,6 +109,18 @@ export default function CaseView({ id, goHome }) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => { dead = true; es.close(); clearInterval(t); };
   }, [id, push, refresh]);
+
+  // Active time: report every 30 seconds whether the console is visible.
+  const beating = !!cs?.attemptId && cs?.status !== 'closed';
+  useEffect(() => {
+    if (!beating) return undefined;
+    const beat = () => api.heartbeat(id, document.visibilityState === 'visible').catch(() => {});
+    beat();
+    const t = setInterval(beat, 30000);
+    const vis = () => beat();
+    document.addEventListener('visibilitychange', vis);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); };
+  }, [id, beating]);
 
   // Announce alerts as they arrive.
   useEffect(() => {
@@ -175,7 +189,7 @@ export default function CaseView({ id, goHome }) {
   }), [pinned, cs?.status, cs?.readOnly, id]);
 
   if (loadErr) {
-    return <div className="page"><ErrorNote error={loadErr} /><p><button type="button" className="btn" onClick={goHome}>Back to all cases</button></p></div>;
+    return <div className="page"><ErrorNote error={loadErr} /><p><button type="button" className="btn" onClick={goHome}>Back to SOC home</button></p></div>;
   }
   if (!cs) return <div className="page"><p className="muted">Loading case…</p></div>;
 
@@ -190,12 +204,15 @@ export default function CaseView({ id, goHome }) {
   return (
     <div className="case">
       <header className="topbar" data-tour="topbar">
-        <button type="button" className="link back" onClick={goHome}>{cs.kind ? 'Home' : 'All cases'}</button>
+        {cs.level
+          ? <button type="button" className="link back" onClick={() => go(`#/level/${cs.level}`)}>Back to level</button>
+          : <button type="button" className="link back" onClick={goHome}>{cs.kind ? 'Home' : 'SOC home'}</button>}
         <div className="top-id" data-tour="ticket">
           <span className="ticket mono">
             {cs.status === 'monitoring' ? 'No ticket yet' : cs.ticket}
             {cs.kind === 'demo' && <span className="kind-tag">Guided demo</span>}
             {cs.kind === 'preview' && <span className="kind-tag">Read-only sample</span>}
+            {cs.level && <span className="kind-tag level-tag">{LEVEL_NAME[cs.level]} · {cs.code}</span>}
           </span>
           <h1>{cs.status === 'monitoring' ? 'Monitoring the alert queue' : cs.title}</h1>
         </div>
@@ -226,7 +243,7 @@ export default function CaseView({ id, goHome }) {
           <div hidden={tab !== 'tools'} className="tab-keep"><ToolsPanel cs={cs} ctx={ctx} prefill={prefill} onCase={setCs} /></div>
           {tab === 'evidence' && <EvidencePanel cs={cs} ctx={ctx} act={act} />}
           {tab === 'history' && <HistoryPanel cs={cs} act={act} />}
-          {tab === 'report' && closed && <ReportPanel cs={cs} />}
+          {tab === 'report' && closed && <ReportPanel cs={cs} go={go} />}
         </main>
         <Workflow cs={cs} onCase={(c) => { if (cs.status === 'monitoring' && c.status === 'open') { setTab('alert'); setFlash(null); } setCs(c); if (c.status === 'closed') setTab('report'); }} review={review} setReview={setReview} ctx={ctx} />
       </div>
